@@ -27,6 +27,23 @@ const SECTIONS = [
   { key: 'agent', title: 'Agent Identity', subtitle: 'Nama dan berkas kepribadian agen' },
 ];
 
+const getFieldPlaceholder = (key) => {
+  switch (key) {
+    case 'api_key':
+      return 'sk-...';
+    case 'bot_token':
+      return '123456:ABC-DEF...';
+    case 'uri':
+      return 'https://api.openai.com/v1';
+    case 'port':
+      return '8090';
+    case 'secret':
+      return 'kunci_rahasia';
+    default:
+      return key;
+  }
+};
+
 export default function QuickstartScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -193,8 +210,10 @@ export default function QuickstartScreen() {
 
   // Build the complete atomic payload
   const buildPayload = () => {
-    const modelPayload = modelMode === 'existing'
-      ? { mode: 'existing', value: existingProvider || stateData?.model_providers?.[0] || 'copilot.default' }
+    const hasExistingProviders = (stateData?.model_providers?.length || 0) > 0;
+    const isModelExisting = modelMode === 'existing' && hasExistingProviders;
+    const modelPayload = isModelExisting
+      ? { mode: 'existing', value: existingProvider || stateData.model_providers[0] }
       : {
           mode: 'fresh',
           value: {
@@ -209,10 +228,13 @@ export default function QuickstartScreen() {
       .filter(([_, content]) => Boolean(content && content.trim()))
       .map(([filename, content]) => ({ filename, content }));
 
+    const hasExistingRisk = Array.isArray(stateData?.risk_profiles) && stateData.risk_profiles.some((p) => (p?.name || p) === riskValue);
+    const hasExistingRuntime = Array.isArray(stateData?.runtime_profiles) && stateData.runtime_profiles.some((p) => (p?.name || p) === runtimeValue);
+
     return {
       model_provider: modelPayload,
-      risk_profile: { mode: 'existing', value: riskValue },
-      runtime_profile: { mode: 'existing', value: runtimeValue },
+      risk_profile: { mode: hasExistingRisk ? 'existing' : 'fresh', value: riskValue },
+      runtime_profile: { mode: hasExistingRuntime ? 'existing' : 'fresh', value: runtimeValue },
       memory: { mode: 'fresh', value: memoryValue },
       channels: channelsList.map((c) =>
         c.mode === 'existing'
@@ -244,14 +266,21 @@ export default function QuickstartScreen() {
   const validateCurrentStep = () => {
     setErrorBanner(null);
     if (stepIndex === 0) {
-      if (modelMode === 'existing') {
+      const hasExistingProviders = (stateData?.model_providers?.length || 0) > 0;
+      const isModelExisting = modelMode === 'existing' && hasExistingProviders;
+      if (isModelExisting) {
         if (!existingProvider) {
           setErrorBanner('Pilih salah satu model provider yang tersedia.');
           return false;
         }
       } else {
-        if (!providerAlias.trim()) {
+        const trimmedAlias = providerAlias.trim();
+        if (!trimmedAlias) {
           setErrorBanner('Alias konfigurasi model provider wajib diisi.');
+          return false;
+        }
+        if (!/^[a-z0-9_]+$/.test(trimmedAlias)) {
+          setErrorBanner('Alias model provider hanya boleh menggunakan huruf kecil (a-z), angka (0-9), dan garis bawah (_).');
           return false;
         }
         if (!providerModel.trim()) {
@@ -284,8 +313,17 @@ export default function QuickstartScreen() {
   // Handle Finish Submission atomically without double LoadingOverlay flicker
   const handleFinish = async () => {
     setErrorBanner(null);
-    if (!agentName.trim()) {
+    const trimmedAgentName = agentName.trim();
+    if (!trimmedAgentName) {
       setErrorBanner('Nama agen wajib diisi.');
+      return;
+    }
+    if (trimmedAgentName.toLowerCase() === 'default') {
+      setErrorBanner("Nama agen 'default' direservasi oleh sistem dan tidak dapat digunakan.");
+      return;
+    }
+    if (!/^[a-z0-9_]+$/.test(trimmedAgentName)) {
+      setErrorBanner('Nama agen hanya boleh menggunakan huruf kecil (a-z), angka (0-9), dan garis bawah (_).');
       return;
     }
     setSubmitting(true);
@@ -395,7 +433,11 @@ export default function QuickstartScreen() {
                 placeholder="default"
                 placeholderTextColor="#666"
                 autoCapitalize="none"
+                autoCorrect={false}
               />
+              <Text style={styles.fieldHelp}>
+                Hanya huruf kecil, angka, dan underscore (_).
+              </Text>
             </View>
 
             <View style={styles.fieldBlock}>
@@ -415,6 +457,10 @@ export default function QuickstartScreen() {
 
             {cachedFields.map((f) => {
               if (f.key === 'model') return null; // Already rendered above
+              const isApiKey = f.key === 'api_key';
+              const helpText = isApiKey
+                ? 'Kredensial akses model. Opsional jika sudah diset di environment sistem atau via CLI auth.'
+                : f.help;
               return (
                 <View key={f.key} style={styles.fieldBlock}>
                   <Text style={styles.fieldLabel}>
@@ -427,13 +473,13 @@ export default function QuickstartScreen() {
                       setErrorBanner(null);
                       setDynamicFields((prev) => ({ ...prev, [f.key]: val }));
                     }}
-                    placeholder={f.help ? f.help.slice(0, 45) + '...' : f.key}
+                    placeholder={getFieldPlaceholder(f.key)}
                     placeholderTextColor="#666"
                     secureTextEntry={Boolean(f.is_secret)}
                     autoCapitalize="none"
                     autoCorrect={false}
                   />
-                  {f.help && <Text style={styles.fieldHelp}>{f.help}</Text>}
+                  {helpText && <Text style={styles.fieldHelp}>{helpText}</Text>}
                 </View>
               );
             })}
@@ -534,8 +580,13 @@ export default function QuickstartScreen() {
 
     const handleAddChannel = () => {
       setChannelError('');
-      if (!channelType || !channelAlias.trim()) {
+      const trimmedAlias = channelAlias.trim();
+      if (!channelType || !trimmedAlias) {
         setChannelError('Pilih jenis kanal dan isi alias kanal.');
+        return;
+      }
+      if (!/^[a-z0-9_]+$/.test(trimmedAlias)) {
+        setChannelError('Alias kanal hanya boleh menggunakan huruf kecil (a-z), angka (0-9), dan garis bawah (_).');
         return;
       }
       const missingRequired = cachedFields.find((f) => {
@@ -626,7 +677,11 @@ export default function QuickstartScreen() {
                 placeholder="main"
                 placeholderTextColor="#666"
                 autoCapitalize="none"
+                autoCorrect={false}
               />
+              <Text style={styles.fieldHelp}>
+                Hanya huruf kecil, angka, dan underscore (_).
+              </Text>
             </View>
 
             {cachedFields.map((f) => (
@@ -641,7 +696,7 @@ export default function QuickstartScreen() {
                     setChannelError('');
                     setChannelFields((prev) => ({ ...prev, [f.key]: val }));
                   }}
-                  placeholder={f.help ? f.help.slice(0, 45) + '...' : f.key}
+                  placeholder={getFieldPlaceholder(f.key)}
                   placeholderTextColor="#666"
                   secureTextEntry={Boolean(f.is_secret)}
                   autoCapitalize="none"
@@ -693,8 +748,13 @@ export default function QuickstartScreen() {
         setPeerGroupError('Pilih kanal untuk peer group.');
         return;
       }
+      const trimmedName = peerGroupName.trim();
+      if (trimmedName && !/^[a-z0-9_]+$/.test(trimmedName)) {
+        setPeerGroupError('Nama peer group hanya boleh menggunakan huruf kecil (a-z), angka (0-9), dan garis bawah (_).');
+        return;
+      }
       const defaultName = `${selectedChannel.replace('.', '_')}_default`;
-      const finalName = peerGroupName.trim() || defaultName;
+      const finalName = trimmedName || defaultName;
       const peers = peerGroupPeers
         .split(/[\n,]/)
         .map((p) => p.trim())
@@ -785,7 +845,11 @@ export default function QuickstartScreen() {
                     placeholder="admins"
                     placeholderTextColor="#666"
                     autoCapitalize="none"
+                    autoCorrect={false}
                   />
+                  <Text style={styles.fieldHelp}>
+                    Hanya huruf kecil, angka, dan underscore (_).
+                  </Text>
                 </View>
 
                 <View style={styles.fieldBlock}>
@@ -853,22 +917,28 @@ export default function QuickstartScreen() {
               setErrorBanner(null);
               setAgentName(val);
             }}
-            placeholder="Nama agen..."
+            placeholder="aichan"
             placeholderTextColor="#666"
-            autoCapitalize="words"
+            autoCapitalize="none"
+            autoCorrect={false}
           />
+          <Text style={styles.fieldHelp}>
+            Hanya huruf kecil, angka, dan underscore (_). Nama "default" direservasi oleh sistem.
+          </Text>
         </View>
 
         <View style={styles.fieldBlock}>
-          <Text style={styles.fieldLabel}>Instruksi Tambahan (System Prompt - Opsional)</Text>
+          <Text style={styles.fieldLabel}>Instruksi Tambahan (System Prompt)</Text>
           <TextInput
-            style={[styles.input, styles.textArea]}
+            style={[styles.input, styles.systemPromptInput]}
             value={systemPrompt}
             onChangeText={setSystemPrompt}
-            placeholder="Instruksi tambahan (opsional)..."
+            placeholder="You are a helpful AI assistant."
             placeholderTextColor="#666"
             multiline
-            numberOfLines={3}
+            numberOfLines={4}
+            autoCapitalize="none"
+            autoCorrect={false}
           />
         </View>
 
@@ -1195,6 +1265,13 @@ const styles = StyleSheet.create({
   },
   markdownInput: {
     minHeight: 180,
+    textAlignVertical: 'top',
+    fontFamily: 'monospace',
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  systemPromptInput: {
+    minHeight: 110,
     textAlignVertical: 'top',
     fontFamily: 'monospace',
     fontSize: 13,
