@@ -23,7 +23,7 @@ const SECTIONS = [
   { key: 'memory', title: 'Memory', subtitle: 'Pilih media penyimpanan memori jangka panjang' },
   { key: 'channels', title: 'Channels', subtitle: 'Hubungkan kanal komunikasi eksternal (opsional)' },
   { key: 'peer_groups', title: 'Peer Groups', subtitle: 'Atur kolaborasi multi-agen (opsional)' },
-  { key: 'agent', title: 'Agent Identity', subtitle: 'Nama agen dan berkas kepribadian SOUL.md' },
+  { key: 'agent', title: 'Agent Identity', subtitle: 'Nama dan berkas kepribadian agen' },
 ];
 
 export default function QuickstartScreen() {
@@ -115,10 +115,10 @@ export default function QuickstartScreen() {
     }
   }, [modelMode, providerType]);
 
-  // Fetch dynamic fields when switching channel type
+  // Fetch dynamic fields when switching channel type (ZeroClaw section variant: 'channel')
   useEffect(() => {
     if (channelType) {
-      onboarding.fetchSectionFields('channels', channelType);
+      onboarding.fetchSectionFields('channel', channelType);
     }
   }, [channelType]);
 
@@ -196,8 +196,8 @@ export default function QuickstartScreen() {
           mode: 'fresh',
           value: {
             provider_type: providerType,
-            alias: providerAlias.trim() || 'default',
-            model: providerModel.trim() || 'gpt-4o',
+            alias: providerAlias.trim(),
+            model: providerModel.trim(),
             fields: dynamicFields,
           },
         };
@@ -237,8 +237,43 @@ export default function QuickstartScreen() {
     };
   };
 
+  // Step-level client validation before proceeding
+  const validateCurrentStep = () => {
+    if (stepIndex === 0 && modelMode === 'fresh') {
+      if (!providerAlias.trim()) {
+        Alert.alert('Perhatian', 'Alias konfigurasi model provider wajib diisi.');
+        return false;
+      }
+      if (!providerModel.trim()) {
+        Alert.alert('Perhatian', 'Nama model AI wajib diisi.');
+        return false;
+      }
+      const cachedFields = onboarding.fieldsCache?.[`model_provider:${providerType}`] || [];
+      const missing = cachedFields.find((f) => {
+        if (!f.required) return false;
+        const val = dynamicFields[f.key];
+        return val === undefined || val === null || String(val).trim() === '';
+      });
+      if (missing) {
+        Alert.alert('Perhatian', `Field "${missing.label || missing.key}" wajib diisi.`);
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const handleNext = () => {
+    if (!validateCurrentStep()) return;
+    setErrorBanner(null);
+    setStepIndex((i) => Math.min(SECTIONS.length - 1, i + 1));
+  };
+
   // Handle Finish Submission atomically without double LoadingOverlay flicker
   const handleFinish = async () => {
+    if (!agentName.trim()) {
+      Alert.alert('Perhatian', 'Nama agen wajib diisi.');
+      return;
+    }
     setErrorBanner(null);
     setSubmitting(true);
     const payload = buildPayload();
@@ -326,24 +361,24 @@ export default function QuickstartScreen() {
             </ScrollView>
 
             <View style={styles.fieldBlock}>
-              <Text style={styles.fieldLabel}>Alias Konfigurasi</Text>
+              <Text style={styles.fieldLabel}>Alias Konfigurasi *</Text>
               <TextInput
                 style={styles.input}
                 value={providerAlias}
                 onChangeText={setProviderAlias}
-                placeholder="misal: default"
+                placeholder="default"
                 placeholderTextColor="#666"
                 autoCapitalize="none"
               />
             </View>
 
             <View style={styles.fieldBlock}>
-              <Text style={styles.fieldLabel}>Nama Model</Text>
+              <Text style={styles.fieldLabel}>Nama Model *</Text>
               <TextInput
                 style={styles.input}
                 value={providerModel}
                 onChangeText={setProviderModel}
-                placeholder="misal: gpt-4o atau claude-3-5-sonnet"
+                placeholder="gpt-4o"
                 placeholderTextColor="#666"
                 autoCapitalize="none"
               />
@@ -463,11 +498,20 @@ export default function QuickstartScreen() {
   // Render Step 5: Channels
   const renderChannelsStep = () => {
     const channelTypes = stateData?.channel_types || [];
-    const cachedFields = onboarding.fieldsCache?.[`channels:${channelType}`] || [];
+    const cachedFields = onboarding.fieldsCache?.[`channel:${channelType}`] || [];
 
     const handleAddChannel = () => {
       if (!channelType || !channelAlias.trim()) {
         Alert.alert('Perhatian', 'Pilih jenis kanal dan isi alias kanal.');
+        return;
+      }
+      const missingRequired = cachedFields.find((f) => {
+        if (!f.required) return false;
+        const val = channelFields[f.key];
+        return val === undefined || val === null || String(val).trim() === '';
+      });
+      if (missingRequired) {
+        Alert.alert('Perhatian', `Field "${missingRequired.label || missingRequired.key}" wajib diisi.`);
         return;
       }
       setChannelsList((prev) => [
@@ -539,7 +583,7 @@ export default function QuickstartScreen() {
                 style={styles.input}
                 value={channelAlias}
                 onChangeText={setChannelAlias}
-                placeholder="misal: main atau alerts"
+                placeholder="main"
                 placeholderTextColor="#666"
                 autoCapitalize="none"
               />
@@ -678,12 +722,12 @@ export default function QuickstartScreen() {
                 </ScrollView>
 
                 <View style={styles.fieldBlock}>
-                  <Text style={styles.fieldLabel}>Nama Peer Group</Text>
+                  <Text style={styles.fieldLabel}>Nama Peer Group (Opsional, bawaan: [kanal]_default)</Text>
                   <TextInput
                     style={styles.input}
                     value={peerGroupName}
                     onChangeText={setPeerGroupName}
-                    placeholder="misal: admins"
+                    placeholder="admins"
                     placeholderTextColor="#666"
                     autoCapitalize="none"
                   />
@@ -743,26 +787,26 @@ export default function QuickstartScreen() {
             style={styles.input}
             value={agentName}
             onChangeText={setAgentName}
-            placeholder="Nama agen (misal: Ai-Chan)..."
+            placeholder="Nama agen..."
             placeholderTextColor="#666"
             autoCapitalize="words"
           />
         </View>
 
         <View style={styles.fieldBlock}>
-          <Text style={styles.fieldLabel}>Instruksi Dasar (System Prompt)</Text>
+          <Text style={styles.fieldLabel}>Instruksi Tambahan (System Prompt - Opsional)</Text>
           <TextInput
             style={[styles.input, styles.textArea]}
             value={systemPrompt}
             onChangeText={setSystemPrompt}
-            placeholder="Instruksi sistem / system prompt..."
+            placeholder="Instruksi tambahan (opsional)..."
             placeholderTextColor="#666"
             multiline
             numberOfLines={3}
           />
         </View>
 
-        <Text style={[styles.groupLabel, { marginTop: 12 }]}>Berkas Kepribadian (Personality Files):</Text>
+        <Text style={[styles.groupLabel, { marginTop: 12 }]}>Berkas Kepribadian:</Text>
         <View style={styles.tabSelector}>
           {tabs.map((tab) => (
             <TouchableOpacity
@@ -877,10 +921,7 @@ export default function QuickstartScreen() {
             <TouchableOpacity
               activeOpacity={0.7}
               style={[styles.navButton, styles.navButtonNext]}
-              onPress={() => {
-                setErrorBanner(null);
-                setStepIndex((i) => Math.min(SECTIONS.length - 1, i + 1));
-              }}>
+              onPress={handleNext}>
               <Text style={[styles.navText, styles.navTextNext]}>Selanjutnya</Text>
             </TouchableOpacity>
           )}
