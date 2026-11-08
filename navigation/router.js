@@ -6,9 +6,14 @@ import { createContext, useContext, useState } from 'react';
 // here plus a new file in screens/, with no change to App.js logic
 // beyond the route table below.
 //
-// Routes: 'chat' (root, home) and 'settings'.
+// Routes: 'token' (awal, root), 'quickstart', 'chat' (home), 'settings'.
 // push(route) adds to the stack, goBack() pops, never below root.
+// reset(route) replaces the whole stack: this is what the initial
+// check uses, so a redirect to the start never leaves a back trail
+// to the token page behind the quickstart/chat page.
 export const ROUTES = {
+  token: 'token',
+  quickstart: 'quickstart',
   chat: 'chat',
   settings: 'settings',
 };
@@ -16,12 +21,13 @@ export const ROUTES = {
 const RouterContext = createContext(null);
 
 export function RouterProvider({ children }) {
-  const [stack, setStack] = useState([ROUTES.chat]);
+  const [stack, setStack] = useState([ROUTES.token]);
   const route = stack[stack.length - 1];
   const push = (next) => setStack((prev) => [...prev, next]);
   const goBack = () => setStack((prev) => (prev.length > 1 ? prev.slice(0, -1) : prev));
+  const reset = (next) => setStack([next]);
   return (
-    <RouterContext.Provider value={{ route, stack, push, goBack }}>
+    <RouterContext.Provider value={{ route, stack, push, goBack, reset }}>
       {children}
     </RouterContext.Provider>
   );

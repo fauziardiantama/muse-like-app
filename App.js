@@ -8,12 +8,17 @@ import { StyleSheet, View } from 'react-native';
 import { ROUTES, RouterProvider, useRouter } from './navigation/router';
 import ChatScreen from './screens/ChatScreen';
 import SettingsScreen from './screens/SettingsScreen';
+import TokenScreen from './screens/TokenScreen';
+import QuickstartScreen from './screens/QuickstartScreen';
 
 // Entry only: providers, splash, fonts, and the router render.
 // No page logic lives here. Chat lives in screens/ChatScreen.js,
-// Settings lives in screens/SettingsScreen.js, routing lives in
+// Settings lives in screens/SettingsScreen.js, Token lives in
+// screens/TokenScreen.js, Quickstart lives in
+// screens/QuickstartScreen.js, routing lives in
 // navigation/router.js. A new page is a new screens/ file plus a
-// route name, not more code in this file.
+// route name and a line in the route table below, not more code
+// in this file.
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
 function AppShell() {
@@ -46,7 +51,15 @@ function AppShell() {
   return (
     <View style={styles.root} onLayout={hideSplash}>
       <StatusBar style="light" />
-      {route === ROUTES.settings ? <SettingsScreen /> : <ChatScreen />}
+      {route === ROUTES.token ? (
+        <TokenScreen />
+      ) : route === ROUTES.quickstart ? (
+        <QuickstartScreen />
+      ) : route === ROUTES.settings ? (
+        <SettingsScreen />
+      ) : (
+        <ChatScreen />
+      )}
     </View>
   );
 }

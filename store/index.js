@@ -10,6 +10,7 @@ import { createSettingsSlice } from './slices/settings';
 import { createIdentitySlice } from './slices/identity';
 import { createConnectionSlice } from './slices/connection';
 import { createChannelsSlice } from './slices/channels';
+import { createOnboardingSlice } from './slices/onboarding';
 
 export const useStore = create((...a) => ({
   ...createChatSlice(...a),
@@ -18,4 +19,5 @@ export const useStore = create((...a) => ({
   ...createIdentitySlice(...a),
   ...createConnectionSlice(...a),
   ...createChannelsSlice(...a),
+  ...createOnboardingSlice(...a),
 }));

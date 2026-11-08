@@ -108,10 +108,10 @@ export default function ChatScreen() {
   });
 
   const renderMessage = (m, index, list) => {
-    if (m.replyTo) {
-      return <ReplyMessage key={m.id} message={m} onReply={handleReply} />;
-    }
     const { isFirst, isLast } = getGroupFlags(list, index);
+    if (m.replyTo) {
+      return <ReplyMessage key={m.id} message={m} onReply={handleReply} isFirst={isFirst} isLast={isLast} />;
+    }
     return (
       <View key={m.id} style={{ marginBottom: isLast ? 12 : 4 }}>
         <ChatBubble role={m.role} text={m.text} isFirst={isFirst} isLast={isLast} onReply={handleReply} />
