@@ -1,4 +1,4 @@
-name: Build Android APK (debug)
+name: Build Android APK (Release arm64-v8a)
 
 on:
   push:
@@ -29,59 +29,54 @@ jobs:
       - name: Generate native Android project
         run: npx expo prebuild --platform android --non-interactive
 
-      - name: Generate JS bundle via release task (debug has no bundle task)
-        run: cd android && ./gradlew :app:createBundleReleaseJsAndAssets --no-daemon
-
-      - name: Copy bundle into debug assets (fail loudly if not generated)
+      - name: Configure arm64-v8a architecture filter
         run: |
-          BUNDLE=$(find android/app/build -name "index.android.bundle" -type f | head -1)
-          if [ -z "$BUNDLE" ]; then
-            echo "ERROR: index.android.bundle not found after release bundle task — refusing to assemble bundle-less"
+          echo "reactNativeArchitectures=arm64-v8a" >> android/gradle.properties
+          cat android/gradle.properties | grep "reactNativeArchitectures"
+
+      - name: Ensure Release build uses debug signing config
+        run: |
+          # Guarantee assembleRelease signs the APK with debug keystore for easy installation
+          sed -i 's/signingConfig signingConfigs.release/signingConfig signingConfigs.debug/g' android/app/build.gradle || true
+          # Ensure signingConfig is set in release block
+          awk '/buildTypes[[:space:]]*\{/ {in_bt=1} in_bt && /release[[:space:]]*\{/ {print; print "            signingConfig signingConfigs.debug"; next} {print}' android/app/build.gradle > android/app/build.gradle.tmp && mv android/app/build.gradle.tmp android/app/build.gradle
+          grep -A 8 "buildTypes {" android/app/build.gradle || true
+
+      - name: Build optimized Release APK (arm64-v8a)
+        run: cd android && ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a --no-daemon
+
+      - name: Locate and prepare release APK
+        run: |
+          APK=$(find android/app/build/outputs/apk/release -name "*.apk" | head -1)
+          if [ -z "$APK" ]; then
+            echo "ERROR: Release APK not found in android/app/build/outputs/apk/release!"
+            find android/app/build/outputs -type f || true
             exit 1
           fi
-          mkdir -p android/app/src/main/assets
-          cp "$BUNDLE" android/app/src/main/assets/index.android.bundle
-          ls -lh android/app/src/main/assets/index.android.bundle
+          echo "Found APK: $APK"
+          ls -lh "$APK"
+          mkdir -p output
+          cp "$APK" output/app-release-arm64.apk
+          echo "Final APK Size:"
+          ls -lh output/app-release-arm64.apk
 
-      - name: Copy generated assets (fonts/icons) into debug assets
+      - name: Verify APK contains bundle and fonts
         run: |
-          GEN=$(find android/app/build/generated/assets -maxdepth 1 -type d -name "createBundle*" 2>/dev/null | head -1)
-          if [ -n "$GEN" ]; then
-            echo "Generated assets dir: $GEN"
-            find "$GEN" -type f | head -50
-            cp -r "$GEN"/. android/app/src/main/assets/
-            echo "Copied generated assets tree into debug assets"
-          else
-            echo "WARNING: no generated assets dir found under android/app/build/generated/assets"
-          fi
-          echo "All .ttf files under android/app/build:"
-          find android/app/build -name "*.ttf" -type f 2>/dev/null | head -50
-          echo "Copying every .ttf found under android/app/build into debug assets/fonts (flattened, in addition to the tree copy above):"
-          mkdir -p android/app/src/main/assets/fonts
-          find android/app/build -name "*.ttf" -type f 2>/dev/null -exec cp -n {} android/app/src/main/assets/fonts/ \; || true
-          echo "Debug assets now contain:"
-          find android/app/src/main/assets -type f | head -80
-
-      - name: Build debug APK
-        run: cd android && ./gradlew assembleDebug --no-daemon
-
-      - name: Verify APK contains bundle (fail loudly, never ship bundle-less)
-        run: |
-          unzip -l android/app/build/outputs/apk/debug/app-debug.apk | grep "assets/" || true
-          unzip -l android/app/build/outputs/apk/debug/app-debug.apk | grep -q "assets/index.android.bundle" || (echo "ERROR: index.android.bundle NOT in APK — refusing to publish a bundle-less APK" && exit 1)
-
-      - name: Verify APK contains fonts (fail loudly, never ship font-less)
-        run: |
-          unzip -l android/app/build/outputs/apk/debug/app-debug.apk | grep -iE "\.ttf" || (echo "ERROR: no .ttf in APK — fonts did not make it into the debug APK, refusing to publish" && exit 1)
+          unzip -l output/app-release-arm64.apk | grep "assets/" || true
+          unzip -l output/app-release-arm64.apk | grep -q "assets/index.android.bundle" || (echo "ERROR: index.android.bundle NOT in APK" && exit 1)
+          unzip -l output/app-release-arm64.apk | grep -iE "\.ttf" || (echo "ERROR: fonts NOT in APK" && exit 1)
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: muse-like-app-debug-apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          name: muse-like-app-release-arm64
+          path: output/app-release-arm64.apk
 
       - name: Publish APK to GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "preview-${{ github.run_number }}" android/app/build/outputs/apk/debug/app-debug.apk --title "Preview build ${{ github.run_number }}" --notes "Debug APK built by GitHub Actions (preview, not a stable release)." --prerelease
+          gh release create "preview-${{ github.run_number }}" output/app-release-arm64.apk \
+            --title "Preview build ${{ github.run_number }} (arm64-v8a)" \
+            --notes "Optimized Release APK for arm64-v8a (stripped C++ symbols, ABI filtered) built by GitHub Actions." \
+            --prerelease
