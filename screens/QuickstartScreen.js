@@ -41,8 +41,8 @@ export default function QuickstartScreen() {
   const [modelMode, setModelMode] = useState('existing'); // 'existing' | 'fresh'
   const [existingProvider, setExistingProvider] = useState('');
   const [providerType, setProviderType] = useState('openrouter');
-  const [providerAlias, setProviderAlias] = useState('primary');
-  const [providerModel, setProviderModel] = useState('gpt-4o');
+  const [providerAlias, setProviderAlias] = useState('');
+  const [providerModel, setProviderModel] = useState('');
   const [dynamicFields, setDynamicFields] = useState({});
 
   // --- Step 2: Risk Profile State ---
@@ -56,10 +56,21 @@ export default function QuickstartScreen() {
 
   // --- Step 5: Channels State ---
   const [channelsList, setChannelsList] = useState([]);
+  const [showAddChannel, setShowAddChannel] = useState(false);
+  const [channelType, setChannelType] = useState('');
+  const [channelAlias, setChannelAlias] = useState('');
+  const [channelFields, setChannelFields] = useState({});
+
+  // --- Step 6: Peer Groups State ---
+  const [peerGroupsList, setPeerGroupsList] = useState([]);
+  const [showAddPeerGroup, setShowAddPeerGroup] = useState(false);
+  const [peerGroupChannel, setPeerGroupChannel] = useState('');
+  const [peerGroupName, setPeerGroupName] = useState('');
+  const [peerGroupPeers, setPeerGroupPeers] = useState('');
 
   // --- Step 7: Agent Identity & Personality State ---
-  const [agentName, setAgentName] = useState('Ai-Chan');
-  const [systemPrompt, setSystemPrompt] = useState('You are Ai-Chan, an affectionate and exceptionally capable assistant.');
+  const [agentName, setAgentName] = useState('');
+  const [systemPrompt, setSystemPrompt] = useState('');
   const [activePersonalityTab, setActivePersonalityTab] = useState('SOUL.md');
   const [personalityFiles, setPersonalityFiles] = useState({
     'SOUL.md': '',
@@ -104,13 +115,20 @@ export default function QuickstartScreen() {
     }
   }, [modelMode, providerType]);
 
-  // Fetch personality templates when entering Step 7 or when agent name changes with debounce
+  // Fetch dynamic fields when switching channel type
+  useEffect(() => {
+    if (channelType) {
+      onboarding.fetchSectionFields('channels', channelType);
+    }
+  }, [channelType]);
+
+  // Fetch personality templates when entering Step 7 (pure ZeroClaw defaults without custom prefill)
   const loadTemplates = useCallback((targetName) => {
-    onboarding.fetchPersonalityTemplates({
-      agent_name: targetName || 'Ai-Chan',
-      user_name: 'Farid Frederick',
-      timezone: 'Asia/Jakarta',
-    }).then((res) => {
+    const params = {};
+    if (targetName && targetName.trim()) {
+      params.agent_name = targetName.trim();
+    }
+    onboarding.fetchPersonalityTemplates(params).then((res) => {
       if (res?.files) {
         const fileMap = {};
         res.files.forEach((f) => {
@@ -193,10 +211,25 @@ export default function QuickstartScreen() {
       risk_profile: { mode: 'existing', value: riskValue },
       runtime_profile: { mode: 'existing', value: runtimeValue },
       memory: { mode: 'fresh', value: memoryValue },
-      channels: channelsList,
-      peer_groups: [],
+      channels: channelsList.map((c) =>
+        c.mode === 'existing'
+          ? { mode: 'existing', value: `${c.channel_type}.${c.alias}` }
+          : {
+              mode: 'fresh',
+              value: {
+                channel_type: c.channel_type,
+                alias: c.alias,
+                fields: c.fields || {},
+              },
+            }
+      ),
+      peer_groups: peerGroupsList.map((pg) => ({
+        name: pg.name,
+        channel: pg.channel,
+        external_peers: pg.external_peers || [],
+      })),
       agent: {
-        name: agentName.trim() || 'Ai-Chan',
+        name: agentName.trim(),
         system_prompt: systemPrompt.trim(),
         personality_file: null,
         personality_files: personalityList,
@@ -298,7 +331,7 @@ export default function QuickstartScreen() {
                 style={styles.input}
                 value={providerAlias}
                 onChangeText={setProviderAlias}
-                placeholder="misal: primary"
+                placeholder="misal: default"
                 placeholderTextColor="#666"
                 autoCapitalize="none"
               />
@@ -345,11 +378,7 @@ export default function QuickstartScreen() {
 
   // Render Step 2: Risk Profile
   const renderRiskStep = () => {
-    const presets = stateData?.risk_presets || [
-      { preset_name: 'locked_down', label: 'Locked Down', help: 'Aman maksimal, sandbox ketat.' },
-      { preset_name: 'balanced', label: 'Balanced', help: 'Direkomendasikan untuk penggunaan harian.' },
-      { preset_name: 'yolo', label: 'YOLO', help: 'Otonomi penuh tanpa pembatasan.' },
-    ];
+    const presets = stateData?.risk_presets || [];
 
     return (
       <View style={styles.stepContent}>
@@ -377,11 +406,7 @@ export default function QuickstartScreen() {
 
   // Render Step 3: Runtime Profile
   const renderRuntimeStep = () => {
-    const presets = stateData?.runtime_presets || [
-      { preset_name: 'tight', label: 'Tight', help: 'Hemat token dan timeout cepat.' },
-      { preset_name: 'balanced', label: 'Balanced', help: 'Pengaturan standar yang fleksibel.' },
-      { preset_name: 'unbounded', label: 'Unbounded', help: 'Kapasitas maksimal tanpa batas interaksi.' },
-    ];
+    const presets = stateData?.runtime_presets || [];
 
     return (
       <View style={styles.stepContent}>
@@ -425,10 +450,7 @@ export default function QuickstartScreen() {
               <View style={styles.radioRow}>
                 <View style={[styles.radioCircle, selected && styles.radioCircleSelected]} />
                 <View style={styles.cardTextContainer}>
-                  <Text style={styles.cardTitle}>{k.toUpperCase()}</Text>
-                  <Text style={styles.cardHelp}>
-                    {k === 'sqlite' ? 'Direkomendasikan (Penyimpanan database relasional lokal cepat di Android).' : `Backend memori jenis ${k}.`}
-                  </Text>
+                  <Text style={styles.cardTitle}>{k}</Text>
                 </View>
               </View>
             </TouchableOpacity>
@@ -438,31 +460,276 @@ export default function QuickstartScreen() {
     );
   };
 
-  // Render Step 5: Channels (Optional)
-  const renderChannelsStep = () => (
-    <View style={styles.stepContent}>
-      <View style={styles.infoBox}>
-        <Text style={styles.infoTitle}>Kanal Komunikasi Eksternal</Text>
-        <Text style={styles.infoText}>
-          Aplikasi MUSE Mobile dan Gateway ZeroClaw dapat berjalan mandiri tanpa saluran eksternal. Anda dapat melewati langkah ini atau menambahkannya nanti di Pengaturan.
-        </Text>
-      </View>
-      <Text style={styles.emptyNotice}>Tidak ada saluran eksternal yang diwajibkan saat ini.</Text>
-    </View>
-  );
+  // Render Step 5: Channels
+  const renderChannelsStep = () => {
+    const channelTypes = stateData?.channel_types || [];
+    const cachedFields = onboarding.fieldsCache?.[`channels:${channelType}`] || [];
 
-  // Render Step 6: Peer Groups (Optional)
-  const renderPeerGroupsStep = () => (
-    <View style={styles.stepContent}>
-      <View style={styles.infoBox}>
-        <Text style={styles.infoTitle}>Kolaborasi Peer Groups</Text>
-        <Text style={styles.infoText}>
-          Peer groups digunakan untuk koordinasi inter-agen otonom tingkat lanjut. Konfigurasi ini opsional dan dapat diatur setelah inisialisasi awal.
-        </Text>
+    const handleAddChannel = () => {
+      if (!channelType || !channelAlias.trim()) {
+        Alert.alert('Perhatian', 'Pilih jenis kanal dan isi alias kanal.');
+        return;
+      }
+      setChannelsList((prev) => [
+        ...prev,
+        {
+          mode: 'fresh',
+          channel_type: channelType,
+          alias: channelAlias.trim(),
+          fields: channelFields,
+        },
+      ]);
+      setChannelType('');
+      setChannelAlias('');
+      setChannelFields({});
+      setShowAddChannel(false);
+    };
+
+    const handleRemoveChannel = (idx) => {
+      const removed = channelsList[idx];
+      const removedKey = removed ? `${removed.channel_type}.${removed.alias}` : null;
+      setChannelsList((prev) => prev.filter((_, i) => i !== idx));
+      if (removedKey) {
+        setPeerGroupsList((prev) => prev.filter((pg) => pg.channel !== removedKey));
+      }
+    };
+
+    return (
+      <View style={styles.stepContent}>
+        {channelsList.length > 0 && (
+          <View style={styles.cardGroup}>
+            <Text style={styles.groupLabel}>Kanal Terkonfigurasi ({channelsList.length}):</Text>
+            {channelsList.map((c, i) => (
+              <View key={`${c.channel_type}.${c.alias}.${i}`} style={styles.itemRow}>
+                <View style={styles.itemInfo}>
+                  <Text style={styles.itemTitle}>{c.channel_type}.{c.alias}</Text>
+                  <Text style={styles.itemSubtitle}>Mode: {c.mode}</Text>
+                </View>
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  style={styles.deleteButton}
+                  onPress={() => handleRemoveChannel(i)}>
+                  <Text style={styles.deleteButtonText}>Hapus</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {showAddChannel ? (
+          <View style={styles.formGroup}>
+            <Text style={styles.groupLabel}>Pilih Jenis Kanal:</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pillScroll}>
+              {channelTypes.map((ct) => (
+                <TouchableOpacity
+                  key={ct.kind}
+                  activeOpacity={0.7}
+                  style={[styles.pill, channelType === ct.kind && styles.pillSelected]}
+                  onPress={() => setChannelType(ct.kind)}>
+                  <Text style={[styles.pillText, channelType === ct.kind && styles.pillTextSelected]}>
+                    {ct.display_name || ct.kind}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            <View style={styles.fieldBlock}>
+              <Text style={styles.fieldLabel}>Alias Kanal *</Text>
+              <TextInput
+                style={styles.input}
+                value={channelAlias}
+                onChangeText={setChannelAlias}
+                placeholder="misal: main atau alerts"
+                placeholderTextColor="#666"
+                autoCapitalize="none"
+              />
+            </View>
+
+            {cachedFields.map((f) => (
+              <View key={f.key} style={styles.fieldBlock}>
+                <Text style={styles.fieldLabel}>
+                  {f.label || f.key} {f.required ? '*' : ''}
+                </Text>
+                <TextInput
+                  style={styles.input}
+                  value={channelFields[f.key] || ''}
+                  onChangeText={(val) => setChannelFields((prev) => ({ ...prev, [f.key]: val }))}
+                  placeholder={f.help ? f.help.slice(0, 45) + '...' : f.key}
+                  placeholderTextColor="#666"
+                  secureTextEntry={Boolean(f.is_secret)}
+                  autoCapitalize="none"
+                />
+                {f.help && <Text style={styles.fieldHelp}>{f.help}</Text>}
+              </View>
+            ))}
+
+            <View style={styles.actionRow}>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                style={[styles.actionBtn, styles.actionBtnCancel]}
+                onPress={() => setShowAddChannel(false)}>
+                <Text style={styles.actionBtnText}>Batal</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                style={[styles.actionBtn, styles.actionBtnSave]}
+                onPress={handleAddChannel}>
+                <Text style={[styles.actionBtnText, styles.actionBtnSaveText]}>Simpan Kanal</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : (
+          <TouchableOpacity
+            activeOpacity={0.7}
+            style={styles.addButton}
+            onPress={() => setShowAddChannel(true)}>
+            <Text style={styles.addButtonText}>+ Tambah Kanal Komunikasi</Text>
+          </TouchableOpacity>
+        )}
       </View>
-      <Text style={styles.emptyNotice}>Pengaturan grup siap dilompati.</Text>
-    </View>
-  );
+    );
+  };
+
+  // Render Step 6: Peer Groups
+  const renderPeerGroupsStep = () => {
+    const availableChannels = channelsList.map((c) => `${c.channel_type}.${c.alias}`);
+
+    const handleAddPeerGroup = () => {
+      const selectedChannel = peerGroupChannel || availableChannels[0];
+      if (!selectedChannel) {
+        Alert.alert('Perhatian', 'Pilih kanal untuk peer group.');
+        return;
+      }
+      const defaultName = `${selectedChannel.replace('.', '_')}_default`;
+      const finalName = peerGroupName.trim() || defaultName;
+      const peers = peerGroupPeers
+        .split(/[\n,]/)
+        .map((p) => p.trim())
+        .filter(Boolean);
+
+      setPeerGroupsList((prev) => [
+        ...prev,
+        {
+          name: finalName,
+          channel: selectedChannel,
+          external_peers: peers,
+        },
+      ]);
+      setPeerGroupName('');
+      setPeerGroupPeers('');
+      setShowAddPeerGroup(false);
+    };
+
+    const handleRemovePeerGroup = (idx) => {
+      setPeerGroupsList((prev) => prev.filter((_, i) => i !== idx));
+    };
+
+    return (
+      <View style={styles.stepContent}>
+        {availableChannels.length === 0 ? (
+          <View style={styles.infoBox}>
+            <Text style={styles.infoTitle}>Belum Ada Kanal Terkonfigurasi</Text>
+            <Text style={styles.infoText}>
+              Peer groups menghubungkan percakapan multi-agen melalui kanal eksternal. Silakan tambahkan kanal di Langkah 5 terlebih dahulu jika ingin mengonfigurasi peer group, atau langsung lanjut ke langkah berikutnya.
+            </Text>
+          </View>
+        ) : (
+          <>
+            {peerGroupsList.length > 0 && (
+              <View style={styles.cardGroup}>
+                <Text style={styles.groupLabel}>Peer Groups Terkonfigurasi ({peerGroupsList.length}):</Text>
+                {peerGroupsList.map((pg, i) => (
+                  <View key={`${pg.name}.${i}`} style={styles.itemRow}>
+                    <View style={styles.itemInfo}>
+                      <Text style={styles.itemTitle}>{pg.name}</Text>
+                      <Text style={styles.itemSubtitle}>
+                        Kanal: {pg.channel} · {pg.external_peers.length > 0 ? `${pg.external_peers.length} peers` : 'Semua peer'}
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      activeOpacity={0.7}
+                      style={styles.deleteButton}
+                      onPress={() => handleRemovePeerGroup(i)}>
+                      <Text style={styles.deleteButtonText}>Hapus</Text>
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+            )}
+
+            {showAddPeerGroup ? (
+              <View style={styles.formGroup}>
+                <Text style={styles.groupLabel}>Pilih Kanal Pengait:</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pillScroll}>
+                  {availableChannels.map((ac) => {
+                    const isSelected = (peerGroupChannel || availableChannels[0]) === ac;
+                    return (
+                      <TouchableOpacity
+                        key={ac}
+                        activeOpacity={0.7}
+                        style={[styles.pill, isSelected && styles.pillSelected]}
+                        onPress={() => setPeerGroupChannel(ac)}>
+                        <Text style={[styles.pillText, isSelected && styles.pillTextSelected]}>
+                          {ac}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+
+                <View style={styles.fieldBlock}>
+                  <Text style={styles.fieldLabel}>Nama Peer Group</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={peerGroupName}
+                    onChangeText={setPeerGroupName}
+                    placeholder="misal: admins"
+                    placeholderTextColor="#666"
+                    autoCapitalize="none"
+                  />
+                </View>
+
+                <View style={styles.fieldBlock}>
+                  <Text style={styles.fieldLabel}>External Peers (Opsional, pisahkan koma atau baris baru)</Text>
+                  <TextInput
+                    style={[styles.input, styles.textArea]}
+                    value={peerGroupPeers}
+                    onChangeText={setPeerGroupPeers}
+                    placeholder="@alice&#10;@bob"
+                    placeholderTextColor="#666"
+                    multiline
+                    autoCapitalize="none"
+                  />
+                </View>
+
+                <View style={styles.actionRow}>
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    style={[styles.actionBtn, styles.actionBtnCancel]}
+                    onPress={() => setShowAddPeerGroup(false)}>
+                    <Text style={styles.actionBtnText}>Batal</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    style={[styles.actionBtn, styles.actionBtnSave]}
+                    onPress={handleAddPeerGroup}>
+                    <Text style={[styles.actionBtnText, styles.actionBtnSaveText]}>Simpan Grup</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : (
+              <TouchableOpacity
+                activeOpacity={0.7}
+                style={styles.addButton}
+                onPress={() => setShowAddPeerGroup(true)}>
+                <Text style={styles.addButtonText}>+ Tambah Peer Group</Text>
+              </TouchableOpacity>
+            )}
+          </>
+        )}
+      </View>
+    );
+  };
 
   // Render Step 7: Agent Identity & Personality
   const renderAgentStep = () => {
@@ -476,7 +743,7 @@ export default function QuickstartScreen() {
             style={styles.input}
             value={agentName}
             onChangeText={setAgentName}
-            placeholder="Ai-Chan"
+            placeholder="Nama agen (misal: Ai-Chan)..."
             placeholderTextColor="#666"
             autoCapitalize="words"
           />
@@ -488,7 +755,7 @@ export default function QuickstartScreen() {
             style={[styles.input, styles.textArea]}
             value={systemPrompt}
             onChangeText={setSystemPrompt}
-            placeholder="Instruksi sistem..."
+            placeholder="Instruksi sistem / system prompt..."
             placeholderTextColor="#666"
             multiline
             numberOfLines={3}
@@ -871,6 +1138,83 @@ const styles = StyleSheet.create({
     fontFamily: 'OptimisticApp',
     textAlign: 'center',
     marginVertical: 24,
+  },
+  itemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#1c1c1e',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#2c2c2e',
+  },
+  itemInfo: {
+    flex: 1,
+  },
+  itemTitle: {
+    color: '#fff',
+    fontSize: 15,
+    fontFamily: 'OptimisticApp-Bold',
+  },
+  itemSubtitle: {
+    color: '#8e8e93',
+    fontSize: 12,
+    fontFamily: 'OptimisticApp',
+    marginTop: 2,
+  },
+  deleteButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+  },
+  deleteButtonText: {
+    color: '#ef4444',
+    fontSize: 12,
+    fontFamily: 'OptimisticApp-Bold',
+  },
+  addButton: {
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: '#3b82f6',
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+    backgroundColor: 'rgba(59, 130, 246, 0.05)',
+    marginVertical: 12,
+  },
+  addButtonText: {
+    color: '#3b82f6',
+    fontSize: 14,
+    fontFamily: 'OptimisticApp-Bold',
+  },
+  actionRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 10,
+    marginTop: 12,
+  },
+  actionBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  actionBtnCancel: {
+    backgroundColor: '#2c2c2e',
+  },
+  actionBtnSave: {
+    backgroundColor: '#3b82f6',
+  },
+  actionBtnText: {
+    color: '#fff',
+    fontSize: 13,
+    fontFamily: 'OptimisticApp-Bold',
+  },
+  actionBtnSaveText: {
+    color: '#fff',
   },
   nav: {
     flexDirection: 'row',
