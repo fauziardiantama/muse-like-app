@@ -13,6 +13,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import Icon from '../components/Icon';
+import ErrorMessage from '../components/ErrorMessage';
 import { ROUTES, useRouter } from '../navigation/router';
 import { useStore } from '../store';
 
@@ -60,6 +61,7 @@ export default function QuickstartScreen() {
   const [channelType, setChannelType] = useState('');
   const [channelAlias, setChannelAlias] = useState('');
   const [channelFields, setChannelFields] = useState({});
+  const [channelError, setChannelError] = useState('');
 
   // --- Step 6: Peer Groups State ---
   const [peerGroupsList, setPeerGroupsList] = useState([]);
@@ -67,6 +69,7 @@ export default function QuickstartScreen() {
   const [peerGroupChannel, setPeerGroupChannel] = useState('');
   const [peerGroupName, setPeerGroupName] = useState('');
   const [peerGroupPeers, setPeerGroupPeers] = useState('');
+  const [peerGroupError, setPeerGroupError] = useState('');
 
   // --- Step 7: Agent Identity & Personality State ---
   const [agentName, setAgentName] = useState('');
@@ -239,24 +242,34 @@ export default function QuickstartScreen() {
 
   // Step-level client validation before proceeding
   const validateCurrentStep = () => {
-    if (stepIndex === 0 && modelMode === 'fresh') {
-      if (!providerAlias.trim()) {
-        Alert.alert('Perhatian', 'Alias konfigurasi model provider wajib diisi.');
-        return false;
-      }
-      if (!providerModel.trim()) {
-        Alert.alert('Perhatian', 'Nama model AI wajib diisi.');
-        return false;
-      }
-      const cachedFields = onboarding.fieldsCache?.[`model_provider:${providerType}`] || [];
-      const missing = cachedFields.find((f) => {
-        if (!f.required) return false;
-        const val = dynamicFields[f.key];
-        return val === undefined || val === null || String(val).trim() === '';
-      });
-      if (missing) {
-        Alert.alert('Perhatian', `Field "${missing.label || missing.key}" wajib diisi.`);
-        return false;
+    setErrorBanner(null);
+    if (stepIndex === 0) {
+      if (modelMode === 'existing') {
+        if (!existingProvider) {
+          setErrorBanner('Pilih salah satu model provider yang tersedia.');
+          return false;
+        }
+      } else {
+        if (!providerAlias.trim()) {
+          setErrorBanner('Alias konfigurasi model provider wajib diisi.');
+          return false;
+        }
+        if (!providerModel.trim()) {
+          setErrorBanner('Nama model AI wajib diisi.');
+          return false;
+        }
+        const cachedFields = onboarding.fieldsCache?.[`model_provider:${providerType}`] || [];
+        const missing = cachedFields
+          .filter((f) => f.key !== 'model') // 'model' sudah divalidasi melalui providerModel
+          .find((f) => {
+            if (!f.required) return false;
+            const val = dynamicFields[f.key];
+            return val === undefined || val === null || String(val).trim() === '';
+          });
+        if (missing) {
+          setErrorBanner(`Field "${missing.label || missing.key}" wajib diisi.`);
+          return false;
+        }
       }
     }
     return true;
@@ -270,11 +283,11 @@ export default function QuickstartScreen() {
 
   // Handle Finish Submission atomically without double LoadingOverlay flicker
   const handleFinish = async () => {
+    setErrorBanner(null);
     if (!agentName.trim()) {
-      Alert.alert('Perhatian', 'Nama agen wajib diisi.');
+      setErrorBanner('Nama agen wajib diisi.');
       return;
     }
-    setErrorBanner(null);
     setSubmitting(true);
     const payload = buildPayload();
 
@@ -285,7 +298,6 @@ export default function QuickstartScreen() {
       if (!result.ok && result.errors && result.errors.length > 0) {
         const errorText = result.errors.map((e) => `• [${e.step}] ${e.message}`).join('\n');
         setErrorBanner(errorText);
-        Alert.alert('Validasi Konfigurasi Gagal', errorText);
         return;
       }
 
@@ -294,7 +306,6 @@ export default function QuickstartScreen() {
       setSubmitting(false);
       const msg = err?.message || 'Terjadi kesalahan saat menerapkan konfigurasi.';
       setErrorBanner(msg);
-      Alert.alert('Gagal Menerapkan Quickstart', msg);
     }
   };
 
@@ -311,7 +322,10 @@ export default function QuickstartScreen() {
             <TouchableOpacity
               activeOpacity={0.7}
               style={[styles.tabButton, modelMode === 'existing' && styles.tabButtonActive]}
-              onPress={() => setModelMode('existing')}>
+              onPress={() => {
+                setErrorBanner(null);
+                setModelMode('existing');
+              }}>
               <Text style={[styles.tabText, modelMode === 'existing' && styles.tabTextActive]}>
                 Gunakan yang Ada ({existingProviders.length})
               </Text>
@@ -319,7 +333,10 @@ export default function QuickstartScreen() {
             <TouchableOpacity
               activeOpacity={0.7}
               style={[styles.tabButton, modelMode === 'fresh' && styles.tabButtonActive]}
-              onPress={() => setModelMode('fresh')}>
+              onPress={() => {
+                setErrorBanner(null);
+                setModelMode('fresh');
+              }}>
               <Text style={[styles.tabText, modelMode === 'fresh' && styles.tabTextActive]}>
                 Tambah Baru
               </Text>
@@ -335,7 +352,10 @@ export default function QuickstartScreen() {
                 key={ep}
                 activeOpacity={0.7}
                 style={[styles.radioCard, existingProvider === ep && styles.radioCardSelected]}
-                onPress={() => setExistingProvider(ep)}>
+                onPress={() => {
+                  setErrorBanner(null);
+                  setExistingProvider(ep);
+                }}>
                 <View style={styles.radioRow}>
                   <View style={[styles.radioCircle, existingProvider === ep && styles.radioCircleSelected]} />
                   <Text style={styles.cardTitle}>{ep}</Text>
@@ -352,7 +372,10 @@ export default function QuickstartScreen() {
                   key={pt.kind}
                   activeOpacity={0.7}
                   style={[styles.pill, providerType === pt.kind && styles.pillSelected]}
-                  onPress={() => setProviderType(pt.kind)}>
+                  onPress={() => {
+                    setErrorBanner(null);
+                    setProviderType(pt.kind);
+                  }}>
                   <Text style={[styles.pillText, providerType === pt.kind && styles.pillTextSelected]}>
                     {pt.display_name || pt.kind}
                   </Text>
@@ -365,7 +388,10 @@ export default function QuickstartScreen() {
               <TextInput
                 style={styles.input}
                 value={providerAlias}
-                onChangeText={setProviderAlias}
+                onChangeText={(val) => {
+                  setErrorBanner(null);
+                  setProviderAlias(val);
+                }}
                 placeholder="default"
                 placeholderTextColor="#666"
                 autoCapitalize="none"
@@ -377,7 +403,10 @@ export default function QuickstartScreen() {
               <TextInput
                 style={styles.input}
                 value={providerModel}
-                onChangeText={setProviderModel}
+                onChangeText={(val) => {
+                  setErrorBanner(null);
+                  setProviderModel(val);
+                }}
                 placeholder="gpt-4o"
                 placeholderTextColor="#666"
                 autoCapitalize="none"
@@ -394,7 +423,10 @@ export default function QuickstartScreen() {
                   <TextInput
                     style={styles.input}
                     value={dynamicFields[f.key] || ''}
-                    onChangeText={(val) => setDynamicFields((prev) => ({ ...prev, [f.key]: val }))}
+                    onChangeText={(val) => {
+                      setErrorBanner(null);
+                      setDynamicFields((prev) => ({ ...prev, [f.key]: val }));
+                    }}
                     placeholder={f.help ? f.help.slice(0, 45) + '...' : f.key}
                     placeholderTextColor="#666"
                     secureTextEntry={Boolean(f.is_secret)}
@@ -501,8 +533,9 @@ export default function QuickstartScreen() {
     const cachedFields = onboarding.fieldsCache?.[`channel:${channelType}`] || [];
 
     const handleAddChannel = () => {
+      setChannelError('');
       if (!channelType || !channelAlias.trim()) {
-        Alert.alert('Perhatian', 'Pilih jenis kanal dan isi alias kanal.');
+        setChannelError('Pilih jenis kanal dan isi alias kanal.');
         return;
       }
       const missingRequired = cachedFields.find((f) => {
@@ -511,7 +544,7 @@ export default function QuickstartScreen() {
         return val === undefined || val === null || String(val).trim() === '';
       });
       if (missingRequired) {
-        Alert.alert('Perhatian', `Field "${missingRequired.label || missingRequired.key}" wajib diisi.`);
+        setChannelError(`Field "${missingRequired.label || missingRequired.key}" wajib diisi.`);
         return;
       }
       setChannelsList((prev) => [
@@ -526,6 +559,7 @@ export default function QuickstartScreen() {
       setChannelType('');
       setChannelAlias('');
       setChannelFields({});
+      setChannelError('');
       setShowAddChannel(false);
     };
 
@@ -569,7 +603,10 @@ export default function QuickstartScreen() {
                   key={ct.kind}
                   activeOpacity={0.7}
                   style={[styles.pill, channelType === ct.kind && styles.pillSelected]}
-                  onPress={() => setChannelType(ct.kind)}>
+                  onPress={() => {
+                    setChannelError('');
+                    setChannelType(ct.kind);
+                  }}>
                   <Text style={[styles.pillText, channelType === ct.kind && styles.pillTextSelected]}>
                     {ct.display_name || ct.kind}
                   </Text>
@@ -582,7 +619,10 @@ export default function QuickstartScreen() {
               <TextInput
                 style={styles.input}
                 value={channelAlias}
-                onChangeText={setChannelAlias}
+                onChangeText={(val) => {
+                  setChannelError('');
+                  setChannelAlias(val);
+                }}
                 placeholder="main"
                 placeholderTextColor="#666"
                 autoCapitalize="none"
@@ -597,7 +637,10 @@ export default function QuickstartScreen() {
                 <TextInput
                   style={styles.input}
                   value={channelFields[f.key] || ''}
-                  onChangeText={(val) => setChannelFields((prev) => ({ ...prev, [f.key]: val }))}
+                  onChangeText={(val) => {
+                    setChannelError('');
+                    setChannelFields((prev) => ({ ...prev, [f.key]: val }));
+                  }}
                   placeholder={f.help ? f.help.slice(0, 45) + '...' : f.key}
                   placeholderTextColor="#666"
                   secureTextEntry={Boolean(f.is_secret)}
@@ -607,11 +650,16 @@ export default function QuickstartScreen() {
               </View>
             ))}
 
+            <ErrorMessage message={channelError} style={{ fontSize: 13, marginVertical: 4 }} />
+
             <View style={styles.actionRow}>
               <TouchableOpacity
                 activeOpacity={0.7}
                 style={[styles.actionBtn, styles.actionBtnCancel]}
-                onPress={() => setShowAddChannel(false)}>
+                onPress={() => {
+                  setChannelError('');
+                  setShowAddChannel(false);
+                }}>
                 <Text style={styles.actionBtnText}>Batal</Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -639,9 +687,10 @@ export default function QuickstartScreen() {
     const availableChannels = channelsList.map((c) => `${c.channel_type}.${c.alias}`);
 
     const handleAddPeerGroup = () => {
+      setPeerGroupError('');
       const selectedChannel = peerGroupChannel || availableChannels[0];
       if (!selectedChannel) {
-        Alert.alert('Perhatian', 'Pilih kanal untuk peer group.');
+        setPeerGroupError('Pilih kanal untuk peer group.');
         return;
       }
       const defaultName = `${selectedChannel.replace('.', '_')}_default`;
@@ -712,7 +761,10 @@ export default function QuickstartScreen() {
                         key={ac}
                         activeOpacity={0.7}
                         style={[styles.pill, isSelected && styles.pillSelected]}
-                        onPress={() => setPeerGroupChannel(ac)}>
+                        onPress={() => {
+                          setPeerGroupError('');
+                          setPeerGroupChannel(ac);
+                        }}>
                         <Text style={[styles.pillText, isSelected && styles.pillTextSelected]}>
                           {ac}
                         </Text>
@@ -726,7 +778,10 @@ export default function QuickstartScreen() {
                   <TextInput
                     style={styles.input}
                     value={peerGroupName}
-                    onChangeText={setPeerGroupName}
+                    onChangeText={(val) => {
+                      setPeerGroupError('');
+                      setPeerGroupName(val);
+                    }}
                     placeholder="admins"
                     placeholderTextColor="#666"
                     autoCapitalize="none"
@@ -738,7 +793,10 @@ export default function QuickstartScreen() {
                   <TextInput
                     style={[styles.input, styles.textArea]}
                     value={peerGroupPeers}
-                    onChangeText={setPeerGroupPeers}
+                    onChangeText={(val) => {
+                      setPeerGroupError('');
+                      setPeerGroupPeers(val);
+                    }}
                     placeholder="@alice&#10;@bob"
                     placeholderTextColor="#666"
                     multiline
@@ -746,11 +804,16 @@ export default function QuickstartScreen() {
                   />
                 </View>
 
+                <ErrorMessage message={peerGroupError} style={{ fontSize: 13, marginVertical: 4 }} />
+
                 <View style={styles.actionRow}>
                   <TouchableOpacity
                     activeOpacity={0.7}
                     style={[styles.actionBtn, styles.actionBtnCancel]}
-                    onPress={() => setShowAddPeerGroup(false)}>
+                    onPress={() => {
+                      setPeerGroupError('');
+                      setShowAddPeerGroup(false);
+                    }}>
                     <Text style={styles.actionBtnText}>Batal</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
@@ -786,7 +849,10 @@ export default function QuickstartScreen() {
           <TextInput
             style={styles.input}
             value={agentName}
-            onChangeText={setAgentName}
+            onChangeText={(val) => {
+              setErrorBanner(null);
+              setAgentName(val);
+            }}
             placeholder="Nama agen..."
             placeholderTextColor="#666"
             autoCapitalize="words"
@@ -877,13 +943,6 @@ export default function QuickstartScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Error Banner */}
-        {errorBanner && (
-          <View style={styles.errorBanner}>
-            <Text style={styles.errorBannerText}>{errorBanner}</Text>
-          </View>
-        )}
-
         {/* Form Content Scrollable */}
         <ScrollView
           style={styles.scrollContainer}
@@ -891,6 +950,9 @@ export default function QuickstartScreen() {
           keyboardShouldPersistTaps="handled">
           {renderCurrentStepContent()}
         </ScrollView>
+
+        {/* Centralized ErrorMessage component matching TokenScreen */}
+        <ErrorMessage message={errorBanner} style={{ marginBottom: 12 }} />
 
         {/* Bottom Navigation with Safe Area Inset */}
         <View style={[styles.nav, { paddingBottom: Math.max(24, 16 + insets.bottom) }]}>
@@ -980,21 +1042,6 @@ const styles = StyleSheet.create({
     color: '#8e8e93',
     fontSize: 13,
     fontFamily: 'OptimisticApp-Bold',
-  },
-  errorBanner: {
-    backgroundColor: 'rgba(239, 68, 68, 0.15)',
-    borderLeftWidth: 3,
-    borderLeftColor: '#ef4444',
-    padding: 12,
-    marginHorizontal: 20,
-    marginTop: 12,
-    borderRadius: 8,
-  },
-  errorBannerText: {
-    color: '#f87171',
-    fontSize: 13,
-    fontFamily: 'OptimisticApp',
-    lineHeight: 18,
   },
   scrollContainer: {
     flex: 1,

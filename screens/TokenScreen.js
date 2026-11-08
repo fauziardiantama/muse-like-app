@@ -12,6 +12,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import { useRouter } from '../navigation/router';
 import { useStore } from '../store';
+import ErrorMessage from '../components/ErrorMessage';
 
 export default function TokenScreen() {
   const { reset } = useRouter();
@@ -152,9 +153,7 @@ export default function TokenScreen() {
         autoCorrect={false}
       />
 
-      {Boolean(displayError) && (
-        <Text style={styles.errorText}>{displayError}</Text>
-      )}
+      <ErrorMessage message={displayError} />
 
       <TouchableOpacity
         activeOpacity={0.7}
@@ -217,13 +216,6 @@ const styles = StyleSheet.create({
     fontFamily: 'OptimisticApp',
     textAlign: 'center',
     marginVertical: 14,
-  },
-  errorText: {
-    color: '#ff4d4f',
-    fontSize: 14,
-    fontFamily: 'OptimisticApp',
-    marginTop: 12,
-    textAlign: 'center',
   },
   submit: {
     backgroundColor: '#fff',
