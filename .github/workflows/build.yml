@@ -31,16 +31,9 @@ jobs:
 
       - name: Configure arm64-v8a architecture filter
         run: |
-          echo "reactNativeArchitectures=arm64-v8a" >> android/gradle.properties
-          cat android/gradle.properties | grep "reactNativeArchitectures"
-
-      - name: Ensure Release build uses debug signing config
-        run: |
-          # Guarantee assembleRelease signs the APK with debug keystore for easy installation
-          sed -i 's/signingConfig signingConfigs.release/signingConfig signingConfigs.debug/g' android/app/build.gradle || true
-          # Ensure signingConfig is set in release block
-          awk '/buildTypes[[:space:]]*\{/ {in_bt=1} in_bt && /release[[:space:]]*\{/ {print; print "            signingConfig signingConfigs.debug"; next} {print}' android/app/build.gradle > android/app/build.gradle.tmp && mv android/app/build.gradle.tmp android/app/build.gradle
-          grep -A 8 "buildTypes {" android/app/build.gradle || true
+          # Use printf with leading newline so it never appends to the trailing JSON property in gradle.properties
+          printf "\nreactNativeArchitectures=arm64-v8a\n" >> android/gradle.properties
+          tail -n 10 android/gradle.properties
 
       - name: Build optimized Release APK (arm64-v8a)
         run: cd android && ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a --no-daemon
