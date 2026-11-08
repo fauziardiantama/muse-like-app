@@ -6,9 +6,7 @@ import { StatusBar } from 'expo-status-bar';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { StyleSheet, View } from 'react-native';
 import { ROUTES, RouterProvider, useRouter } from './navigation/router';
-import { decideInitialRoute } from './navigation/initialCheck';
 import { useStore } from './store';
-import { setClientBaseUrl, setAuthToken, verifyAuthToken } from './api/client';
 import ChatScreen from './screens/ChatScreen';
 import SettingsScreen from './screens/SettingsScreen';
 import TokenScreen from './screens/TokenScreen';
@@ -23,8 +21,7 @@ function AppShell() {
   const initialChecked = useRef(false);
   const [hydrated, setHydrated] = useState(useStore.persist?.hasHydrated?.() ?? true);
 
-  const connection = useStore((s) => s.connection);
-  const onboarding = useStore((s) => s.onboarding);
+  const checkStartupStatus = useStore((s) => s.connection.checkStartupStatus);
 
   useEffect(() => {
     if (useStore.persist?.onFinishHydration) {
@@ -57,48 +54,22 @@ function AppShell() {
     if (fontsLoaded || fontError) hideSplash();
   }, [fontsLoaded, fontError, hideSplash]);
 
-  // Sinkronisasi data tersimpan & auto-redirect rute awal saat aplikasi dibuka
+  // Delegasikan pengecekan status awal dan penentuan rute ke store action
   useEffect(() => {
-    if (!hydrated) return;
+    if (!hydrated || initialChecked.current) return;
+    initialChecked.current = true;
 
-    if (connection.baseUrl) {
-      setClientBaseUrl(connection.baseUrl);
-    }
-    if (connection.authToken) {
-      setAuthToken(connection.authToken);
-    }
-
-    if (!initialChecked.current) {
-      const storedToken = connection.authToken;
-      const storedUrl = connection.baseUrl;
-
-      if (!storedToken) {
-        initialChecked.current = true;
+    checkStartupStatus()
+      .then((targetRoute) => {
+        reset(targetRoute);
+      })
+      .catch(() => {
         reset(ROUTES.token);
-        return;
-      }
-
-      // Verifikasi aktif: pastikan token ada DAN work di server
-      initialChecked.current = true;
-      verifyAuthToken(storedToken, storedUrl)
-        .then(() => {
-          const targetRoute = decideInitialRoute({
-            hasToken: true,
-            quickstartCompleted: onboarding.quickstartCompleted,
-          });
-          reset(targetRoute);
-        })
-        .catch((err) => {
-          if (err?.status === 401 || err?.kind === 'unauthorized') {
-            useStore.getState().connection.setAuthToken(null);
-            useStore.getState().connection.setError('Sesi autentikasi telah kedaluwarsa atau token tidak valid. Silakan pasangkan ulang.');
-          } else {
-            useStore.getState().connection.setError(err?.message || 'Gagal terhubung ke gateway.');
-          }
-          reset(ROUTES.token);
-        });
-    }
-  }, [hydrated, connection.authToken, connection.baseUrl, onboarding.quickstartCompleted, reset]);
+      })
+      .finally(() => {
+        if (fontsLoaded || fontError) hideSplash();
+      });
+  }, [hydrated, fontsLoaded, fontError, checkStartupStatus, reset, hideSplash]);
 
   return (
     <View style={styles.root} onLayout={hideSplash}>

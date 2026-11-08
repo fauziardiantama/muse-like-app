@@ -29,9 +29,31 @@ export const useStore = create(
       name: 'muse-app-storage',
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({
-        connection: state.connection,
-        onboarding: state.onboarding,
+        connection: {
+          baseUrl: state.connection.baseUrl,
+          authToken: state.connection.authToken,
+          paired: state.connection.paired,
+        },
+        onboarding: {
+          quickstartCompleted: state.onboarding.quickstartCompleted,
+        },
         settings: state.settings,
+      }),
+      merge: (persistedState, currentState) => ({
+        ...currentState,
+        ...persistedState,
+        connection: {
+          ...currentState.connection,
+          ...(persistedState?.connection || {}),
+        },
+        onboarding: {
+          ...currentState.onboarding,
+          ...(persistedState?.onboarding || {}),
+        },
+        settings: {
+          ...currentState.settings,
+          ...(persistedState?.settings || {}),
+        },
       }),
     }
   )

@@ -10,6 +10,9 @@ export const ENDPOINTS = {
     apiHealth: { method: 'GET', path: '/api/health', auth: true },
     openapi: { method: 'GET', path: '/api/openapi.json', auth: false },
   },
+  quickstart: {
+    state: { method: 'GET', path: '/api/quickstart/state', auth: true },
+  },
   pairing: {
     pair: { method: 'POST', path: '/pair', auth: false },
     devices: { method: 'GET', path: '/api/devices', auth: true },

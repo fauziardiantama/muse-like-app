@@ -11,18 +11,16 @@ import {
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import { useRouter } from '../navigation/router';
-import { decideInitialRoute } from '../navigation/initialCheck';
 import { useStore } from '../store';
-import { pair, setClientBaseUrl, setAuthToken as setApiAuthToken, verifyAuthToken } from '../api/client';
 
 export default function TokenScreen() {
   const { reset } = useRouter();
   const currentBaseUrl = useStore((s) => s.connection.baseUrl);
   const connectionError = useStore((s) => s.connection.error);
-  const setBaseUrl = useStore((s) => s.connection.setBaseUrl);
-  const setAuthToken = useStore((s) => s.connection.setAuthToken);
+  const connectionLoading = useStore((s) => s.connection.loading);
   const setConnectionError = useStore((s) => s.connection.setError);
-  const quickstartCompleted = useStore((s) => s.onboarding.quickstartCompleted);
+  const pairWithCode = useStore((s) => s.connection.pairWithCode);
+  const submitAdminToken = useStore((s) => s.connection.submitAdminToken);
 
   const [serverUrl, setServerUrl] = useState(currentBaseUrl || 'http://localhost:3000');
   const [pairKey, setPairKey] = useState('');
@@ -65,7 +63,7 @@ export default function TokenScreen() {
   };
 
   const onSubmit = async () => {
-    setErrorMessage('');
+    clearErrors();
     const trimmedUrl = serverUrl.trim().replace(/\/+$/, '');
     if (!trimmedUrl) {
       setErrorMessage('URL server tidak boleh kosong.');
@@ -78,20 +76,10 @@ export default function TokenScreen() {
     if (trimmedKey) {
       setLoading(true);
       try {
-        setClientBaseUrl(trimmedUrl);
-        const { token } = await pair(trimmedKey, trimmedUrl);
-
-        if (!token) {
-          throw new Error('Server tidak mengembalikan token auth.');
-        }
-
-        setBaseUrl(trimmedUrl);
-        setAuthToken(token);
-        setApiAuthToken(token);
-        reset(decideInitialRoute({ hasToken: true, quickstartCompleted }));
+        const targetRoute = await pairWithCode(trimmedKey, trimmedUrl);
+        reset(targetRoute);
       } catch (err) {
-        const msg = err.message || (err.kind === 'forbidden' ? 'Kode pairing tidak valid atau kedaluwarsa' : 'Gagal terhubung ke gateway');
-        setErrorMessage(msg);
+        setErrorMessage(err.message || 'Gagal terhubung ke gateway');
       } finally {
         setLoading(false);
       }
@@ -102,15 +90,10 @@ export default function TokenScreen() {
     if (chosenToken) {
       setLoading(true);
       try {
-        setClientBaseUrl(trimmedUrl);
-        await verifyAuthToken(chosenToken, trimmedUrl);
-        setBaseUrl(trimmedUrl);
-        setAuthToken(chosenToken);
-        setApiAuthToken(chosenToken);
-        reset(decideInitialRoute({ hasToken: true, quickstartCompleted }));
+        const targetRoute = await submitAdminToken(chosenToken, trimmedUrl);
+        reset(targetRoute);
       } catch (err) {
-        const msg = err.message || (err.kind === 'unauthorized' ? 'Token admin tidak valid atau ditolak oleh gateway' : 'Gagal terhubung ke gateway');
-        setErrorMessage(msg);
+        setErrorMessage(err.message || 'Gagal memverifikasi token admin');
       } finally {
         setLoading(false);
       }
@@ -120,6 +103,7 @@ export default function TokenScreen() {
     setErrorMessage('Masukkan Pair key atau pilih berkas admin.token.');
   };
 
+  const isBusy = loading || connectionLoading;
   const displayError = errorMessage || connectionError;
 
   return (
@@ -174,10 +158,10 @@ export default function TokenScreen() {
 
       <TouchableOpacity
         activeOpacity={0.7}
-        style={[styles.submit, loading && styles.submitDisabled]}
-        disabled={loading}
+        style={[styles.submit, isBusy && styles.submitDisabled]}
+        disabled={isBusy}
         onPress={onSubmit}>
-        {loading ? (
+        {isBusy ? (
           <ActivityIndicator color="#000" />
         ) : (
           <Text style={styles.submitText}>Submit</Text>

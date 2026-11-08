@@ -10,6 +10,10 @@ export function setAuthToken(token) {
   authToken = token;
 }
 
+export function clearClientAuth() {
+  authToken = null;
+}
+
 export function hasAuthToken() {
   return authToken !== null;
 }
@@ -76,6 +80,10 @@ async function request(endpoint, { body, params = [], headers = {} } = {}) {
 
 export function checkHealth() {
   return request(ENDPOINTS.system.health);
+}
+
+export function getQuickstartState() {
+  return request(ENDPOINTS.quickstart.state);
 }
 
 export function verifyAuthToken(token, customUrl) {
