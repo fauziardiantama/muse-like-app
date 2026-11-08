@@ -63,9 +63,21 @@ export const ENDPOINTS = {
   },
 };
 
+let activeBaseUrl = null;
+
+export function setActiveBaseUrl(url) {
+  activeBaseUrl = url ? url.replace(/\/+$/, '') : null;
+}
+
+export function getActiveBaseUrl() {
+  return activeBaseUrl || GATEWAY_BASE_URL;
+}
+
 export function buildUrl(endpoint, ...args) {
   const path = typeof endpoint.path === 'function'
     ? endpoint.path(...args)
     : endpoint.path;
-  return `${GATEWAY_BASE_URL}${path}`;
+  const base = getActiveBaseUrl();
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  return `${base}${normalizedPath}`;
 }

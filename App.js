@@ -6,24 +6,24 @@ import { StatusBar } from 'expo-status-bar';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { StyleSheet, View } from 'react-native';
 import { ROUTES, RouterProvider, useRouter } from './navigation/router';
+import { decideInitialRoute } from './navigation/initialCheck';
+import { useStore } from './store';
+import { setClientBaseUrl, setAuthToken } from './api/client';
 import ChatScreen from './screens/ChatScreen';
 import SettingsScreen from './screens/SettingsScreen';
 import TokenScreen from './screens/TokenScreen';
 import QuickstartScreen from './screens/QuickstartScreen';
 
 // Entry only: providers, splash, fonts, and the router render.
-// No page logic lives here. Chat lives in screens/ChatScreen.js,
-// Settings lives in screens/SettingsScreen.js, Token lives in
-// screens/TokenScreen.js, Quickstart lives in
-// screens/QuickstartScreen.js, routing lives in
-// navigation/router.js. A new page is a new screens/ file plus a
-// route name and a line in the route table below, not more code
-// in this file.
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
 function AppShell() {
-  const { route } = useRouter();
+  const { route, reset } = useRouter();
   const splashHidden = useRef(false);
+  const initialChecked = useRef(false);
+
+  const connection = useStore((s) => s.connection);
+  const onboarding = useStore((s) => s.onboarding);
 
   const hideSplash = useCallback(async () => {
     if (splashHidden.current) return;
@@ -47,6 +47,28 @@ function AppShell() {
   useEffect(() => {
     if (fontsLoaded || fontError) hideSplash();
   }, [fontsLoaded, fontError, hideSplash]);
+
+  // Sinkronisasi data tersimpan & auto-redirect rute awal saat aplikasi dibuka
+  useEffect(() => {
+    if (connection.baseUrl) {
+      setClientBaseUrl(connection.baseUrl);
+    }
+    if (connection.authToken) {
+      setAuthToken(connection.authToken);
+    }
+
+    if (!initialChecked.current) {
+      const hasToken = connection.paired && Boolean(connection.authToken);
+      if (hasToken) {
+        initialChecked.current = true;
+        const targetRoute = decideInitialRoute({
+          hasToken: true,
+          quickstartCompleted: onboarding.quickstartCompleted,
+        });
+        reset(targetRoute);
+      }
+    }
+  }, [connection.paired, connection.authToken, connection.baseUrl, onboarding.quickstartCompleted, reset]);
 
   return (
     <View style={styles.root} onLayout={hideSplash}>
