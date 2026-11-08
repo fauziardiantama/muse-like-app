@@ -34,8 +34,17 @@ function buildHeaders(endpoint, extra = {}) {
   return headers;
 }
 
-async function request(endpoint, { body, params = [], headers = {} } = {}) {
-  const url = buildUrl(endpoint, ...params);
+async function request(endpoint, { body, params = [], query, headers = {} } = {}) {
+  let url = buildUrl(endpoint, ...params);
+  if (query && typeof query === 'object') {
+    const q = Object.entries(query)
+      .filter(([_, v]) => v !== undefined && v !== null && v !== '')
+      .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+      .join('&');
+    if (q) {
+      url += (url.includes('?') ? '&' : '?') + q;
+    }
+  }
   let lastError = null;
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
@@ -84,6 +93,47 @@ export function checkHealth() {
 
 export function getQuickstartState() {
   return request(ENDPOINTS.quickstart.state);
+}
+
+export function getQuickstartFields(section, typeKey) {
+  return request(ENDPOINTS.quickstart.fields, {
+    body: { section, type_key: typeKey },
+  });
+}
+
+export function validateQuickstart(payload) {
+  return request(ENDPOINTS.quickstart.validate, { body: payload });
+}
+
+export function applyQuickstart(payload) {
+  return request(ENDPOINTS.quickstart.apply, { body: payload });
+}
+
+export function dismissQuickstart({ runId, surface = 'web', lastStep = 'quickstart' } = {}) {
+  const run_id = runId || `mobile-${Date.now()}`;
+  return request(ENDPOINTS.quickstart.dismiss, {
+    body: { run_id, surface, last_step: lastStep },
+  });
+}
+
+export function getPersonalityTemplates(query = {}) {
+  return request(ENDPOINTS.personality.templates, { query });
+}
+
+export function getPersonalityFiles(agent) {
+  return request(ENDPOINTS.personality.get, { query: { agent } });
+}
+
+export function getPersonalityFile(filename, agent) {
+  return request(ENDPOINTS.personality.getFile, { params: [filename], query: { agent } });
+}
+
+export function putPersonalityFile(filename, content, agent) {
+  return request(ENDPOINTS.personality.putFile, {
+    params: [filename],
+    query: { agent },
+    body: { content },
+  });
 }
 
 export function verifyAuthToken(token, customUrl) {

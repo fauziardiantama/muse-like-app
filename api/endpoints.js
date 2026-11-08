@@ -12,6 +12,24 @@ export const ENDPOINTS = {
   },
   quickstart: {
     state: { method: 'GET', path: '/api/quickstart/state', auth: true },
+    fields: { method: 'POST', path: '/api/quickstart/fields', auth: true },
+    validate: { method: 'POST', path: '/api/quickstart/validate', auth: true },
+    apply: { method: 'POST', path: '/api/quickstart/apply', auth: true },
+    dismiss: { method: 'POST', path: '/api/quickstart/dismiss', auth: true },
+  },
+  personality: {
+    templates: { method: 'GET', path: '/api/personality/templates', auth: true },
+    get: { method: 'GET', path: '/api/personality', auth: true },
+    getFile: {
+      method: 'GET',
+      path: (file) => `/api/personality/${file}`,
+      auth: true,
+    },
+    putFile: {
+      method: 'PUT',
+      path: (file) => `/api/personality/${file}`,
+      auth: true,
+    },
   },
   pairing: {
     pair: { method: 'POST', path: '/pair', auth: false },

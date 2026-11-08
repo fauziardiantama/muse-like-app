@@ -11,6 +11,7 @@ import ChatScreen from './screens/ChatScreen';
 import SettingsScreen from './screens/SettingsScreen';
 import TokenScreen from './screens/TokenScreen';
 import QuickstartScreen from './screens/QuickstartScreen';
+import LoadingOverlay from './components/LoadingOverlay';
 
 // Entry only: providers, splash, fonts, and the router render.
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -22,6 +23,9 @@ function AppShell() {
   const [hydrated, setHydrated] = useState(useStore.persist?.hasHydrated?.() ?? true);
 
   const checkStartupStatus = useStore((s) => s.connection.checkStartupStatus);
+  const connectionLoading = useStore((s) => s.connection.loading);
+  const onboardingLoading = useStore((s) => s.onboarding.loading);
+  const isGlobalLoading = connectionLoading || onboardingLoading;
 
   useEffect(() => {
     if (useStore.persist?.onFinishHydration) {
@@ -83,6 +87,7 @@ function AppShell() {
       ) : (
         <ChatScreen />
       )}
+      <LoadingOverlay visible={isGlobalLoading} />
     </View>
   );
 }
