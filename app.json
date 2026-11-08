@@ -27,6 +27,7 @@
       "expo-font",
       "./plugins/with-adjust-nothing",
       "./plugins/with-font-assets",
+      "./plugins/with-cleartext",
       [
         "expo-splash-screen",
         {
