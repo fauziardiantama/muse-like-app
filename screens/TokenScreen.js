@@ -13,13 +13,15 @@ import * as FileSystem from 'expo-file-system';
 import { useRouter } from '../navigation/router';
 import { decideInitialRoute } from '../navigation/initialCheck';
 import { useStore } from '../store';
-import { pair, setClientBaseUrl, setAuthToken as setApiAuthToken } from '../api/client';
+import { pair, setClientBaseUrl, setAuthToken as setApiAuthToken, verifyAuthToken } from '../api/client';
 
 export default function TokenScreen() {
   const { reset } = useRouter();
   const currentBaseUrl = useStore((s) => s.connection.baseUrl);
+  const connectionError = useStore((s) => s.connection.error);
   const setBaseUrl = useStore((s) => s.connection.setBaseUrl);
   const setAuthToken = useStore((s) => s.connection.setAuthToken);
+  const setConnectionError = useStore((s) => s.connection.setError);
   const quickstartCompleted = useStore((s) => s.onboarding.quickstartCompleted);
 
   const [serverUrl, setServerUrl] = useState(currentBaseUrl || 'http://localhost:3000');
@@ -29,8 +31,13 @@ export default function TokenScreen() {
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
+  const clearErrors = () => {
+    if (errorMessage) setErrorMessage('');
+    if (connectionError) setConnectionError(null);
+  };
+
   const onPickFile = async () => {
-    setErrorMessage('');
+    clearErrors();
     try {
       const res = await DocumentPicker.getDocumentAsync({
         type: '*/*',
@@ -93,16 +100,27 @@ export default function TokenScreen() {
 
     // 2. Jalur Berkas admin.token
     if (chosenToken) {
-      setClientBaseUrl(trimmedUrl);
-      setBaseUrl(trimmedUrl);
-      setAuthToken(chosenToken);
-      setApiAuthToken(chosenToken);
-      reset(decideInitialRoute({ hasToken: true, quickstartCompleted }));
+      setLoading(true);
+      try {
+        setClientBaseUrl(trimmedUrl);
+        await verifyAuthToken(chosenToken, trimmedUrl);
+        setBaseUrl(trimmedUrl);
+        setAuthToken(chosenToken);
+        setApiAuthToken(chosenToken);
+        reset(decideInitialRoute({ hasToken: true, quickstartCompleted }));
+      } catch (err) {
+        const msg = err.message || (err.kind === 'unauthorized' ? 'Token admin tidak valid atau ditolak oleh gateway' : 'Gagal terhubung ke gateway');
+        setErrorMessage(msg);
+      } finally {
+        setLoading(false);
+      }
       return;
     }
 
     setErrorMessage('Masukkan Pair key atau pilih berkas admin.token.');
   };
+
+  const displayError = errorMessage || connectionError;
 
   return (
     <View style={styles.root}>
@@ -112,7 +130,10 @@ export default function TokenScreen() {
       <TextInput
         style={styles.input}
         value={serverUrl}
-        onChangeText={setServerUrl}
+        onChangeText={(val) => {
+          clearErrors();
+          setServerUrl(val);
+        }}
         placeholder="http://192.168.1.x:3000"
         placeholderTextColor="#888"
         autoCapitalize="none"
@@ -137,15 +158,18 @@ export default function TokenScreen() {
       <TextInput
         style={styles.input}
         value={pairKey}
-        onChangeText={setPairKey}
+        onChangeText={(val) => {
+          clearErrors();
+          setPairKey(val);
+        }}
         placeholder="Pair key (32 karakter)"
         placeholderTextColor="#888"
         autoCapitalize="none"
         autoCorrect={false}
       />
 
-      {Boolean(errorMessage) && (
-        <Text style={styles.errorText}>{errorMessage}</Text>
+      {Boolean(displayError) && (
+        <Text style={styles.errorText}>{displayError}</Text>
       )}
 
       <TouchableOpacity

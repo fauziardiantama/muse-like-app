@@ -7,7 +7,7 @@ import { GATEWAY_BASE_URL } from './config';
 export const ENDPOINTS = {
   system: {
     health: { method: 'GET', path: '/health', auth: false },
-    apiHealth: { method: 'GET', path: '/api/health', auth: false },
+    apiHealth: { method: 'GET', path: '/api/health', auth: true },
     openapi: { method: 'GET', path: '/api/openapi.json', auth: false },
   },
   pairing: {

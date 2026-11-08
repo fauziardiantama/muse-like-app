@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Font from 'expo-font';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -8,7 +8,7 @@ import { StyleSheet, View } from 'react-native';
 import { ROUTES, RouterProvider, useRouter } from './navigation/router';
 import { decideInitialRoute } from './navigation/initialCheck';
 import { useStore } from './store';
-import { setClientBaseUrl, setAuthToken } from './api/client';
+import { setClientBaseUrl, setAuthToken, verifyAuthToken } from './api/client';
 import ChatScreen from './screens/ChatScreen';
 import SettingsScreen from './screens/SettingsScreen';
 import TokenScreen from './screens/TokenScreen';
@@ -21,9 +21,18 @@ function AppShell() {
   const { route, reset } = useRouter();
   const splashHidden = useRef(false);
   const initialChecked = useRef(false);
+  const [hydrated, setHydrated] = useState(useStore.persist?.hasHydrated?.() ?? true);
 
   const connection = useStore((s) => s.connection);
   const onboarding = useStore((s) => s.onboarding);
+
+  useEffect(() => {
+    if (useStore.persist?.onFinishHydration) {
+      const unsub = useStore.persist.onFinishHydration(() => setHydrated(true));
+      if (useStore.persist.hasHydrated()) setHydrated(true);
+      return unsub;
+    }
+  }, []);
 
   const hideSplash = useCallback(async () => {
     if (splashHidden.current) return;
@@ -50,6 +59,8 @@ function AppShell() {
 
   // Sinkronisasi data tersimpan & auto-redirect rute awal saat aplikasi dibuka
   useEffect(() => {
+    if (!hydrated) return;
+
     if (connection.baseUrl) {
       setClientBaseUrl(connection.baseUrl);
     }
@@ -58,17 +69,36 @@ function AppShell() {
     }
 
     if (!initialChecked.current) {
-      const hasToken = connection.paired && Boolean(connection.authToken);
-      if (hasToken) {
+      const storedToken = connection.authToken;
+      const storedUrl = connection.baseUrl;
+
+      if (!storedToken) {
         initialChecked.current = true;
-        const targetRoute = decideInitialRoute({
-          hasToken: true,
-          quickstartCompleted: onboarding.quickstartCompleted,
-        });
-        reset(targetRoute);
+        reset(ROUTES.token);
+        return;
       }
+
+      // Verifikasi aktif: pastikan token ada DAN work di server
+      initialChecked.current = true;
+      verifyAuthToken(storedToken, storedUrl)
+        .then(() => {
+          const targetRoute = decideInitialRoute({
+            hasToken: true,
+            quickstartCompleted: onboarding.quickstartCompleted,
+          });
+          reset(targetRoute);
+        })
+        .catch((err) => {
+          if (err?.status === 401 || err?.kind === 'unauthorized') {
+            useStore.getState().connection.setAuthToken(null);
+            useStore.getState().connection.setError('Sesi autentikasi telah kedaluwarsa atau token tidak valid. Silakan pasangkan ulang.');
+          } else {
+            useStore.getState().connection.setError(err?.message || 'Gagal terhubung ke gateway.');
+          }
+          reset(ROUTES.token);
+        });
     }
-  }, [connection.paired, connection.authToken, connection.baseUrl, onboarding.quickstartCompleted, reset]);
+  }, [hydrated, connection.authToken, connection.baseUrl, onboarding.quickstartCompleted, reset]);
 
   return (
     <View style={styles.root} onLayout={hideSplash}>

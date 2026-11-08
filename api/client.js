@@ -78,6 +78,16 @@ export function checkHealth() {
   return request(ENDPOINTS.system.health);
 }
 
+export function verifyAuthToken(token, customUrl) {
+  if (customUrl) {
+    setActiveBaseUrl(customUrl);
+  }
+  if (token) {
+    setAuthToken(token);
+  }
+  return request(ENDPOINTS.system.apiHealth);
+}
+
 export async function pair(code, customUrl) {
   if (customUrl) {
     setActiveBaseUrl(customUrl);
