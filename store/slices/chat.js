@@ -296,7 +296,6 @@ export const createChatSlice = (set, get) => ({
 
       setupChatWebSocket({ agent, sessionId, isMain: false, set });
     },
-    },
 
     sendMessage: (text) => {
       const trimmed = text.trim();
