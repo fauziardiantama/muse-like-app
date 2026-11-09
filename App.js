@@ -21,6 +21,7 @@ function AppShell() {
   const splashHidden = useRef(false);
   const initialChecked = useRef(false);
   const [hydrated, setHydrated] = useState(useStore.persist?.hasHydrated?.() ?? true);
+  const [isReady, setIsReady] = useState(false);
 
   const checkStartupStatus = useStore((s) => s.connection.checkStartupStatus);
   const connectionLoading = useStore((s) => s.connection.loading);
@@ -43,20 +44,22 @@ function AppShell() {
     } catch {}
   }, []);
 
-  useEffect(() => {
-    const t = setTimeout(hideSplash, 3000);
-    return () => clearTimeout(t);
-  }, [hideSplash]);
-
   const [fontsLoaded, fontError] = Font.useFonts({
     'OptimisticApp': require('./assets/fonts/OptimisticApp-Regular.ttf'),
     'OptimisticApp-Medium': require('./assets/fonts/OptimisticApp-Medium.ttf'),
     'OptimisticApp-Bold': require('./assets/fonts/OptimisticApp-Bold.ttf'),
   });
 
+  const isAppReady = isReady && (fontsLoaded || fontError);
+
+  // Safety fallback: pastikan splash screen tidak pernah stuck selamanya
   useEffect(() => {
-    if (fontsLoaded || fontError) hideSplash();
-  }, [fontsLoaded, fontError, hideSplash]);
+    const t = setTimeout(() => {
+      setIsReady(true);
+      hideSplash();
+    }, 5000);
+    return () => clearTimeout(t);
+  }, [hideSplash]);
 
   // Delegasikan pengecekan status awal dan penentuan rute ke store action
   useEffect(() => {
@@ -71,12 +74,36 @@ function AppShell() {
         reset(ROUTES.token);
       })
       .finally(() => {
-        if (fontsLoaded || fontError) hideSplash();
+        setIsReady(true);
       });
-  }, [hydrated, fontsLoaded, fontError, checkStartupStatus, reset, hideSplash]);
+  }, [hydrated, checkStartupStatus, reset]);
+
+  // Hanya sembunyikan splash setelah app benar-benar siap dan rute awal telah terkunci
+  useEffect(() => {
+    if (isAppReady) {
+      hideSplash();
+    }
+  }, [isAppReady, hideSplash]);
+
+  const onRootLayout = useCallback(() => {
+    if (isAppReady) {
+      hideSplash();
+    }
+  }, [isAppReady, hideSplash]);
+
+  // Selama inisialisasi awal belum selesai, render loading screen solid
+  // agar tidak ada sekelibat tampilan TokenScreen sebelum target route ditetapkan
+  if (!isAppReady) {
+    return (
+      <View style={styles.root} onLayout={onRootLayout}>
+        <StatusBar style="light" />
+        <LoadingOverlay visible={true} />
+      </View>
+    );
+  }
 
   return (
-    <View style={styles.root} onLayout={hideSplash}>
+    <View style={styles.root} onLayout={onRootLayout}>
       <StatusBar style="light" />
       {route === ROUTES.token ? (
         <TokenScreen />
