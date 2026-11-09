@@ -42,6 +42,9 @@ export const useStore = create(
           displayName: state.identity.displayName,
           displayNames: state.identity.displayNames,
         },
+        chat: {
+          mainSessionIds: state.chat.mainSessionIds,
+        },
         settings: state.settings,
       }),
       merge: (persistedState, currentState) => ({
@@ -58,6 +61,11 @@ export const useStore = create(
         identity: {
           ...currentState.identity,
           ...(persistedState?.identity || {}),
+        },
+        chat: {
+          ...currentState.chat,
+          ...(persistedState?.chat || {}),
+          mainSessionIds: persistedState?.chat?.mainSessionIds || {},
         },
         settings: {
           ...currentState.settings,

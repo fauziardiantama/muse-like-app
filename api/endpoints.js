@@ -80,7 +80,12 @@ export const ENDPOINTS = {
     reload: { method: 'POST', path: '/admin/reload', auth: true },
   },
   chatSocket: {
-    path: (agent) => `/ws/chat${agent ? `?agent=${agent}` : ''}`,
+    path: (agent, sessionId) => {
+      const q = [];
+      if (agent) q.push(`agent=${encodeURIComponent(agent)}`);
+      if (sessionId) q.push(`session_id=${encodeURIComponent(sessionId)}`);
+      return `/ws/chat${q.length ? `?${q.join('&')}` : ''}`;
+    },
     auth: true,
   },
 };

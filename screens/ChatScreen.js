@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Easing, PanResponder, ScrollView, StyleSheet, View } from 'react-native';
+import { Animated, Easing, PanResponder, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useKeyboardHandler } from 'react-native-keyboard-controller';
 import Reanimated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import Sidebar, { SIDEBAR_WIDTH } from '../components/Sidebar';
@@ -26,9 +26,28 @@ export default function ChatScreen() {
   const replyTo = useStore((s) => s.chat.replyTo);
   const sendMessage = useStore((s) => s.chat.sendMessage);
   const setReplyTo = useStore((s) => s.chat.setReplyTo);
+  const initChat = useStore((s) => s.chat.initChat);
+  const isStreaming = useStore((s) => s.chat.isStreaming);
+  const wsStatus = useStore((s) => s.chat.wsStatus);
+  const activeAgent = useStore((s) => s.identity.activeAgent);
+  const displayName = useStore((s) => s.identity.displayName);
   const [showScrollButton, setShowScrollButton] = useState(true);
   const scrollRef = useRef(null);
   const slideAnim = useRef(new Animated.Value(0)).current;
+
+  // Initialize and connect live chat on mount or agent change
+  useEffect(() => {
+    initChat(activeAgent);
+  }, [activeAgent, initChat]);
+
+  // Auto-scroll to bottom on new messages or active streaming
+  useEffect(() => {
+    if (messages.length > 0) {
+      setTimeout(() => {
+        scrollRef.current?.scrollToEnd({ animated: true });
+      }, 60);
+    }
+  }, [messages.length, isStreaming]);
 
   // Sidebar swipe, close only, faithful to Muse: when open, a left
   // swipe anywhere closes it, same as the hamburger button. No
@@ -119,6 +138,15 @@ export default function ChatScreen() {
     );
   };
 
+  const headerStatus =
+    wsStatus === 'streaming'
+      ? 'Sedang membalas...'
+      : wsStatus === 'connecting'
+        ? 'Menghubungkan...'
+        : wsStatus === 'connected'
+          ? 'Online'
+          : 'Offline';
+
   return (
     <View style={styles.root} {...sidebarPanResponder.panHandlers}>
       <Sidebar onSettingsPress={() => { setSidebarOpen(false); push(ROUTES.settings); }} />
@@ -131,8 +159,20 @@ export default function ChatScreen() {
               contentContainerStyle={[styles.messagesContent, { paddingTop: chatHeaderHeight }]}
               onScroll={handleScroll}
               scrollEventThrottle={16}>
+              {messages.length === 0 && (
+                <View style={styles.emptyContainer}>
+                  <Text style={styles.emptyTitle}>
+                    {displayName || 'Ai-Chan'}
+                  </Text>
+                  <Text style={styles.emptySubtitle}>
+                    Mulai percakapan baru dengan mengirimkan pesan di bawah.
+                  </Text>
+                </View>
+              )}
               {messages.map((m, i, list) => renderMessage(m, i, list))}
-              <TypingIndicator />
+              {isStreaming && (!messages.length || messages[messages.length - 1]?.role === 'user') && (
+                <TypingIndicator />
+              )}
             </ScrollView>
             <ScrollToBottomButton
               visible={showScrollButton}
@@ -146,7 +186,7 @@ export default function ChatScreen() {
         </View>
         <ChatHeader
           onMenuPress={() => setSidebarOpen((v) => !v)}
-          status="Installing preview build"
+          status={headerStatus}
           onLayout={(e) => setChatHeaderHeight(e.nativeEvent.layout.height)}
         />
       </Animated.View>
@@ -161,4 +201,23 @@ const styles = StyleSheet.create({
   messagesWrap: { flex: 1 },
   messages: { flex: 1 },
   messagesContent: { padding: 16, paddingBottom: 8 },
+  emptyContainer: {
+    paddingTop: 80,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+  },
+  emptyTitle: {
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  emptySubtitle: {
+    color: '#8e8e93',
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: 'center',
+  },
 });

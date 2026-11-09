@@ -177,3 +177,13 @@ export function renameMapKey(path, from, to) {
     body: { path, from, to },
   });
 }
+
+export function getChatWebSocketUrl(agent, sessionId) {
+  const httpBase = getClientBaseUrl();
+  const wsBase = httpBase.replace(/^http(s)?:\/\//, (_, s) => (s ? 'wss://' : 'ws://'));
+  const params = [];
+  if (agent) params.push(`agent=${encodeURIComponent(agent)}`);
+  if (sessionId) params.push(`session_id=${encodeURIComponent(sessionId)}`);
+  if (authToken) params.push(`token=${encodeURIComponent(authToken)}`);
+  return `${wsBase}/ws/chat${params.length ? `?${params.join('&')}` : ''}`;
+}
