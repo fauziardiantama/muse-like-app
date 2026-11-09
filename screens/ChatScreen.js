@@ -10,6 +10,7 @@ import ChatBubble from '../components/ChatBubble';
 import ReplyMessage from '../components/ReplyMessage';
 import TypingIndicator from '../components/TypingIndicator';
 import ScrollToBottomButton from '../components/ScrollToBottomButton';
+import { BottomFade } from '../components/TopFade';
 import { getGroupFlags } from '../components/messageGrouping';
 import { ROUTES, useRouter } from '../navigation/router';
 import { useStore } from '../store';
@@ -181,6 +182,7 @@ export default function ChatScreen() {
                 <TypingIndicator />
               )}
             </ScrollView>
+            {showScrollButton && messages.length > 0 && <BottomFade height={12} />}
             <ScrollToBottomButton
               visible={showScrollButton && messages.length > 0}
               onPress={() => scrollRef.current?.scrollToEnd({ animated: true })}
