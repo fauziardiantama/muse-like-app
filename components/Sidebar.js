@@ -18,6 +18,7 @@ const TABS = [
 export default function Sidebar({ onSettingsPress, onSelectChat }) {
   const insets = useSafeAreaInsets();
   const [collapsed, setCollapsed] = useState(false);
+  const [tabCollapsed, setTabCollapsed] = useState(false);
 
   const displayName = useStore((s) => s.identity?.displayName || 'Ai-Chan');
   const activeAgent = useStore((s) => s.identity?.activeAgent || 'aichan');
@@ -54,34 +55,43 @@ export default function Sidebar({ onSettingsPress, onSelectChat }) {
           contentContainerStyle={[styles.scrollContent, { paddingTop: 56 + (insets.top || 0) }]}
           showsVerticalScrollIndicator={false}>
           <Text style={styles.title}>{displayName}</Text>
-          <Text style={styles.sectionTitle}>TAB</Text>
-          <Text style={styles.hint}>Anda bisa mengurutkan ulang dengan menekan lama</Text>
-          {TABS.map((tab) => {
-            const isMainTab = tab.label === 'Obrolan utama';
-            const selected = isMainTab && isMainSelected;
-            return (
-              <TouchableOpacity
-                key={tab.label}
-                activeOpacity={0.7}
-                style={[styles.tabRow, selected && styles.tabRowActive]}
-                onPress={() => {
-                  if (isMainTab) {
-                    initChat(activeAgent);
-                    onSelectChat?.();
-                  }
-                }}>
-                <Icon
-                  name={tab.icon}
-                  size={20}
-                  color={selected ? '#fff' : '#aaa'}
-                  style={styles.tabIcon}
-                />
-                <Text style={[styles.tabLabel, selected && styles.tabLabelActive]}>
-                  {tab.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
+          <TouchableOpacity
+            activeOpacity={0.7}
+            style={styles.tabHeader}
+            onPress={() => setTabCollapsed((v) => !v)}>
+            <Text style={styles.sectionTitle}>TAB</Text>
+          </TouchableOpacity>
+          {!tabCollapsed && (
+            <>
+              <Text style={styles.hint}>Anda bisa mengurutkan ulang dengan menekan lama</Text>
+              {TABS.map((tab) => {
+                const isMainTab = tab.label === 'Obrolan utama';
+                const selected = isMainTab && isMainSelected;
+                return (
+                  <TouchableOpacity
+                    key={tab.label}
+                    activeOpacity={0.7}
+                    style={[styles.tabRow, selected && styles.tabRowActive]}
+                    onPress={() => {
+                      if (isMainTab) {
+                        initChat(activeAgent);
+                        onSelectChat?.();
+                      }
+                    }}>
+                    <Icon
+                      name={tab.icon}
+                      size={20}
+                      color={selected ? '#fff' : '#aaa'}
+                      style={styles.tabIcon}
+                    />
+                    <Text style={[styles.tabLabel, selected && styles.tabLabelActive]}>
+                      {tab.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </>
+          )}
 
           {/* Garis tipis tepat di bawah baris terakhir Tab, tepat di atas teks obrolan selingan */}
           <View style={styles.divider} />
@@ -114,12 +124,9 @@ export default function Sidebar({ onSettingsPress, onSelectChat }) {
                         openSession(sid, session.agent_alias);
                         onSelectChat?.();
                       }}>
-                      <Text
-                        style={[styles.sessionLabel, isSelected && styles.sessionLabelActive]}
-                        numberOfLines={1}>
+                      <Text style={styles.sessionLabel} numberOfLines={1}>
                         {title}
                       </Text>
-                      {isSelected && <View style={styles.unreadDot} />}
                     </TouchableOpacity>
                   );
                 })}
@@ -197,22 +204,14 @@ const styles = StyleSheet.create({
   sessionRowActive: {
     backgroundColor: '#262626',
   },
+  tabHeader: {
+    paddingVertical: 4,
+  },
   sessionLabel: {
     flex: 1,
-    color: '#aaa',
-    fontSize: 16,
-    fontFamily: 'OptimisticApp',
-  },
-  sessionLabelActive: {
     color: '#fff',
+    fontSize: 16,
     fontFamily: 'OptimisticApp-Medium',
-  },
-  unreadDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#0084ff',
-    marginLeft: 8,
   },
   bottomBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8 },
   bottomCircle: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#262626', alignItems: 'center', justifyContent: 'center' },

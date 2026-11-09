@@ -31,7 +31,7 @@ export default function ChatScreen() {
   const wsStatus = useStore((s) => s.chat.wsStatus);
   const activeAgent = useStore((s) => s.identity.activeAgent);
   const displayName = useStore((s) => s.identity.displayName);
-  const [showScrollButton, setShowScrollButton] = useState(true);
+  const [showScrollButton, setShowScrollButton] = useState(false);
   const scrollRef = useRef(null);
   const slideAnim = useRef(new Animated.Value(0)).current;
 
@@ -107,7 +107,7 @@ export default function ChatScreen() {
   const handleScroll = (e) => {
     const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
     const distance = contentSize.height - (layoutMeasurement.height + contentOffset.y);
-    setShowScrollButton(distance > 80);
+    setShowScrollButton(messages.length > 0 && distance > 80);
   };
 
   const handleReply = (target) => {
@@ -161,8 +161,7 @@ export default function ChatScreen() {
               style={styles.messages}
               contentContainerStyle={[styles.messagesContent, { paddingTop: chatHeaderHeight }]}
               onScroll={handleScroll}
-              scrollEventThrottle={16}
-              keyboardShouldPersistTaps="handled">
+              scrollEventThrottle={16}>
               {messages.length === 0 && (
                 <View style={styles.emptyContainer}>
                   <Text style={styles.emptyTitle}>
@@ -179,7 +178,7 @@ export default function ChatScreen() {
               )}
             </ScrollView>
             <ScrollToBottomButton
-              visible={showScrollButton}
+              visible={showScrollButton && messages.length > 0}
               onPress={() => scrollRef.current?.scrollToEnd({ animated: true })}
             />
           </View>
