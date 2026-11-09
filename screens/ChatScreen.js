@@ -158,7 +158,8 @@ export default function ChatScreen() {
               style={styles.messages}
               contentContainerStyle={[styles.messagesContent, { paddingTop: chatHeaderHeight }]}
               onScroll={handleScroll}
-              scrollEventThrottle={16}>
+              scrollEventThrottle={16}
+              keyboardShouldPersistTaps="handled">
               {messages.length === 0 && (
                 <View style={styles.emptyContainer}>
                   <Text style={styles.emptyTitle}>

@@ -20,6 +20,7 @@ export default function ChatBubble({ role, text, isFirst, isLast, onReply }) {
     PanResponder.create({
       onMoveShouldSetPanResponder: (evt, gesture) =>
         gesture.dx > 12 && gesture.dx > Math.abs(gesture.dy) * 1.5,
+      onPanResponderTerminationRequest: () => false,
       onPanResponderMove: (evt, gesture) => {
         const clamped = Math.max(0, gesture.dx);
         dxRef.current = clamped;
