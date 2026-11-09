@@ -1,6 +1,7 @@
 import { StatusBar, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import HeaderButton from './HeaderButton';
+import { useStore } from '../store';
 
 // Header + fade as ONE component, floating over the chat.
 // Fade is NOT a band below the header. It is the header's own
@@ -10,6 +11,9 @@ import HeaderButton from './HeaderButton';
 // over the whole header height and is fully blacked out by the time
 // it reaches the screen top. The pills sit on top of the gradient.
 export default function ChatHeader({ onMenuPress, status, onLayout }) {
+  const displayName = useStore((s) => s.identity?.displayName || 'Ai-Chan');
+  const avatarLetter = (displayName.trim()[0] || 'A').toUpperCase();
+
   return (
     <View style={styles.header} onLayout={onLayout}>
       <LinearGradient
@@ -23,10 +27,10 @@ export default function ChatHeader({ onMenuPress, status, onLayout }) {
         <HeaderButton icon="menu" onPress={onMenuPress} />
         <View style={styles.center}>
           <View style={styles.avatar}>
-            <Text style={styles.avatarText}>A</Text>
+            <Text style={styles.avatarText}>{avatarLetter}</Text>
           </View>
           <View style={styles.namePill}>
-            <Text style={styles.name}>Ai-Chan</Text>
+            <Text style={styles.name}>{displayName}</Text>
             {status ? <Text style={styles.status}>{status}</Text> : null}
           </View>
         </View>

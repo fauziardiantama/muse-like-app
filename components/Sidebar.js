@@ -1,6 +1,7 @@
 import { Dimensions, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from './Icon';
+import { useStore } from '../store';
 
 export const SIDEBAR_WIDTH = Math.round(Dimensions.get('window').width * 0.78);
 
@@ -17,10 +18,12 @@ const TABS = [
 // width-interpolation is what squeezed main and shortened the input.
 export default function Sidebar({ onSettingsPress }) {
   const insets = useSafeAreaInsets();
+  const displayName = useStore((s) => s.identity?.displayName || 'Ai-Chan');
+
   return (
     <View style={styles.sidebar}>
       <View style={[styles.inner, { paddingBottom: 24 + insets.bottom }]}>
-        <Text style={styles.title}>Ai-Chan</Text>
+        <Text style={styles.title}>{displayName}</Text>
         <Text style={styles.sectionTitle}>TAB</Text>
         <Text style={styles.hint}>Anda bisa mengurutkan ulang dengan menekan lama</Text>
         {TABS.map((tab) => (

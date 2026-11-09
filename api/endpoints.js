@@ -71,6 +71,7 @@ export const ENDPOINTS = {
     list: { method: 'GET', path: '/api/config/list', auth: true },
     patch: { method: 'PATCH', path: '/api/config', auth: true },
     drift: { method: 'GET', path: '/api/config/drift', auth: true },
+    renameMapKey: { method: 'POST', path: '/api/config/rename-map-key', auth: true },
   },
   admin: {
     sopPending: { method: 'GET', path: '/admin/sop/pending', auth: true },

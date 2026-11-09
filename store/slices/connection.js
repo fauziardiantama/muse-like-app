@@ -112,10 +112,19 @@ export const createConnectionSlice = (set, get) => ({
           },
         }));
 
-        return decideInitialRoute({
+        const targetRoute = decideInitialRoute({
           hasToken: true,
           quickstartCompleted,
         });
+
+        // Jika rute menuju chat, muat berkas identitas agen aktif di latar belakang secara non-blocking
+        if (targetRoute === ROUTES.chat) {
+          try {
+            get().identity?.loadIdentity?.().catch(() => {});
+          } catch {}
+        }
+
+        return targetRoute;
       } catch (err) {
         if (err?.status === 401 || err?.kind === 'unauthorized') {
           // Token ditolak server (kedaluwarsa atau invalid)
@@ -184,10 +193,19 @@ export const createConnectionSlice = (set, get) => ({
           },
         }));
 
-        return decideInitialRoute({
+        const targetRoute = decideInitialRoute({
           hasToken: true,
           quickstartCompleted,
         });
+
+        // Jika rute menuju chat, muat berkas identitas agen aktif di latar belakang secara non-blocking
+        if (targetRoute === ROUTES.chat) {
+          try {
+            get().identity?.loadIdentity?.().catch(() => {});
+          } catch {}
+        }
+
+        return targetRoute;
       } catch (err) {
         const msg = err.message || (err.kind === 'forbidden'
           ? 'Kode pairing tidak valid atau kedaluwarsa'
@@ -247,10 +265,19 @@ export const createConnectionSlice = (set, get) => ({
           },
         }));
 
-        return decideInitialRoute({
+        const targetRoute = decideInitialRoute({
           hasToken: true,
           quickstartCompleted,
         });
+
+        // Jika rute menuju chat, muat berkas identitas agen aktif di latar belakang secara non-blocking
+        if (targetRoute === ROUTES.chat) {
+          try {
+            get().identity?.loadIdentity?.().catch(() => {});
+          } catch {}
+        }
+
+        return targetRoute;
       } catch (err) {
         const isUnauthorized = err?.status === 401 || err?.kind === 'unauthorized';
         const msg = err.message || (isUnauthorized

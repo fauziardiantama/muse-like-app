@@ -37,6 +37,11 @@ export const useStore = create(
         onboarding: {
           quickstartCompleted: state.onboarding.quickstartCompleted,
         },
+        identity: {
+          activeAgent: state.identity.activeAgent,
+          displayName: state.identity.displayName,
+          displayNames: state.identity.displayNames,
+        },
         settings: state.settings,
       }),
       merge: (persistedState, currentState) => ({
@@ -49,6 +54,10 @@ export const useStore = create(
         onboarding: {
           ...currentState.onboarding,
           ...(persistedState?.onboarding || {}),
+        },
+        identity: {
+          ...currentState.identity,
+          ...(persistedState?.identity || {}),
         },
         settings: {
           ...currentState.settings,

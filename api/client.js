@@ -171,3 +171,9 @@ export function getSessionMessages(sessionId) {
 export function sendMessage(body) {
   return request(ENDPOINTS.messages.send, { body });
 }
+
+export function renameMapKey(path, from, to) {
+  return request(ENDPOINTS.config.renameMapKey, {
+    body: { path, from, to },
+  });
+}
