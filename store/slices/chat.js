@@ -27,6 +27,9 @@ export const createChatSlice = (set, get) => ({
     })),
 
     initChat: async (targetAgent) => {
+      // Ensure active token and baseUrl are synced to api/client
+      get().connection?.syncClientConfig?.();
+
       const state = get();
       const agent = targetAgent || state.identity?.activeAgent || 'aichan';
       const mainSessionId = state.chat?.mainSessionIds?.[agent] || null;
