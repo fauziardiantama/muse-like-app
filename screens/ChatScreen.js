@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Easing, PanResponder, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Animated, Easing, Keyboard, PanResponder, ScrollView, StyleSheet, Text, TouchableWithoutFeedback, View } from 'react-native';
 import { useKeyboardHandler } from 'react-native-keyboard-controller';
 import Reanimated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import Sidebar, { SIDEBAR_WIDTH } from '../components/Sidebar';
@@ -161,16 +161,20 @@ export default function ChatScreen() {
               style={styles.messages}
               contentContainerStyle={[styles.messagesContent, { paddingTop: chatHeaderHeight }]}
               onScroll={handleScroll}
-              scrollEventThrottle={16}>
+              scrollEventThrottle={16}
+              keyboardShouldPersistTaps="always"
+              keyboardDismissMode="on-drag">
               {messages.length === 0 && (
-                <View style={styles.emptyContainer}>
-                  <Text style={styles.emptyTitle}>
-                    {displayName || 'Ai-Chan'}
-                  </Text>
-                  <Text style={styles.emptySubtitle}>
-                    Mulai percakapan baru dengan mengirimkan pesan di bawah.
-                  </Text>
-                </View>
+                <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+                  <View style={styles.emptyContainer}>
+                    <Text style={styles.emptyTitle}>
+                      {displayName || 'Ai-Chan'}
+                    </Text>
+                    <Text style={styles.emptySubtitle}>
+                      Mulai percakapan baru dengan mengirimkan pesan di bawah.
+                    </Text>
+                  </View>
+                </TouchableWithoutFeedback>
               )}
               {messages.map((m, i, list) => renderMessage(m, i, list))}
               {isStreaming && (!messages.length || messages[messages.length - 1]?.role === 'user') && (
