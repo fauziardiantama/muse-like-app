@@ -149,7 +149,10 @@ export default function ChatScreen() {
 
   return (
     <View style={styles.root} {...sidebarPanResponder.panHandlers}>
-      <Sidebar onSettingsPress={() => { setSidebarOpen(false); push(ROUTES.settings); }} />
+      <Sidebar
+        onSettingsPress={() => { setSidebarOpen(false); push(ROUTES.settings); }}
+        onSelectChat={() => setSidebarOpen(false)}
+      />
       <Animated.View style={[styles.main, { transform: [{ translateX }] }]}>
         <Reanimated.View style={[styles.topPart, animatedTopStyle]}>
           <View style={styles.messagesWrap}>
