@@ -1,42 +1,26 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { BackHandler, StyleSheet } from 'react-native';
 import Reanimated, {
   Easing,
+  Extrapolation,
   interpolate,
-  runOnJS,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
 
 // Pure blank black takeover layer expanding from behind the avatar
-// Covers entire chat, composer, and tab bar without any slide-up
+// Always mounted in render tree to eliminate React/Reanimated mount race conditions.
+// Covers entire chat, composer, and tab bar smoothly without any slide-up.
 export default function ProfileTakeoverLayer({ visible, onClose }) {
-  const [mounted, setMounted] = useState(visible);
   const progress = useSharedValue(0);
 
   useEffect(() => {
-    if (visible) {
-      setMounted(true);
-      progress.value = withTiming(1, {
-        duration: 300,
-        easing: Easing.out(Easing.cubic),
-      });
-    } else if (mounted) {
-      progress.value = withTiming(
-        0,
-        {
-          duration: 220,
-          easing: Easing.in(Easing.cubic),
-        },
-        (finished) => {
-          if (finished) {
-            runOnJS(setMounted)(false);
-          }
-        },
-      );
-    }
-  }, [visible, mounted, progress]);
+    progress.value = withTiming(visible ? 1 : 0, {
+      duration: visible ? 300 : 220,
+      easing: visible ? Easing.out(Easing.cubic) : Easing.in(Easing.cubic),
+    });
+  }, [visible, progress]);
 
   // Handle Android back button to close profile
   useEffect(() => {
@@ -51,15 +35,13 @@ export default function ProfileTakeoverLayer({ visible, onClose }) {
   }, [visible, onClose]);
 
   const animatedStyle = useAnimatedStyle(() => {
-    const scale = interpolate(progress.value, [0, 1], [0.8, 1]);
-    const opacity = progress.value;
+    const scale = interpolate(progress.value, [0, 1], [0.8, 1], Extrapolation.CLAMP);
+    const opacity = interpolate(progress.value, [0, 1], [0, 1], Extrapolation.CLAMP);
     return {
       opacity,
       transform: [{ scale }],
     };
   });
-
-  if (!mounted) return null;
 
   return (
     <Reanimated.View
@@ -74,6 +56,6 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     backgroundColor: '#000000',
     zIndex: 50,
-    elevation: 15,
+    elevation: 20,
   },
 });

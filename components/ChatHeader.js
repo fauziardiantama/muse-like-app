@@ -139,9 +139,10 @@ const styles = StyleSheet.create({
   namePill: {
     backgroundColor: '#262626',
     borderRadius: 24,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    marginTop: -12,
+    paddingHorizontal: 16,
+    paddingTop: 20,
+    paddingBottom: 8,
+    marginTop: -16,
     alignItems: 'center',
     zIndex: 1,
     elevation: 1,
