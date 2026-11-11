@@ -49,6 +49,11 @@ const GLYPHS = {
   'pen-tool': 61876,
   lock: 61843,
   phone: 61878,
+  x: 61974,
+  'more-horizontal': 61864,
+  'edit-2': 61792,
+  user: 61957,
+  type: 61951,
 };
 
 export default function Icon({ name, size = 24, color = '#fff', style }) {

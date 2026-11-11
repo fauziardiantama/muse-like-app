@@ -14,6 +14,8 @@ import { BottomFade } from '../components/TopFade';
 import { getGroupFlags } from '../components/messageGrouping';
 import { ROUTES, useRouter } from '../navigation/router';
 import { useStore } from '../store';
+import ProfileTakeoverLayer from '../components/profile/ProfileTakeoverLayer';
+import EditAvatarPopup from '../components/profile/EditAvatarPopup';
 
 // Chat (home) page. Moved out of App.js verbatim: sidebar push,
 // keyboard lift, header overlay + fade, grouped bubbles, drag reply,
@@ -22,6 +24,8 @@ import { useStore } from '../store';
 export default function ChatScreen() {
   const { push } = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [editPopupVisible, setEditPopupVisible] = useState(false);
   const [chatHeaderHeight, setChatHeaderHeight] = useState(148);
   const messages = useStore((s) => s.chat.messages);
   const replyTo = useStore((s) => s.chat.replyTo);
@@ -115,6 +119,16 @@ export default function ChatScreen() {
     setReplyTo(target);
   };
 
+  const handleOpenProfile = () => {
+    Keyboard.dismiss();
+    setSidebarOpen(false);
+    setProfileOpen(true);
+  };
+
+  const handleCloseProfile = () => {
+    setProfileOpen(false);
+  };
+
   const handleSend = (text) => {
     const trimmed = text.trim();
     if (!trimmed) return;
@@ -145,7 +159,7 @@ export default function ChatScreen() {
       : wsStatus === 'connecting'
         ? 'Menghubungkan...'
         : wsStatus === 'connected'
-          ? 'Online'
+          ? null
           : 'Offline';
 
   return (
@@ -193,10 +207,22 @@ export default function ChatScreen() {
         <View onLayout={(e) => { tabBarHeight.value = e.nativeEvent.layout.height; }}>
           <TabBar />
         </View>
+        <ProfileTakeoverLayer
+          visible={profileOpen}
+          onClose={handleCloseProfile}
+        />
         <ChatHeader
           onMenuPress={() => setSidebarOpen((v) => !v)}
           status={headerStatus}
           onLayout={(e) => setChatHeaderHeight(e.nativeEvent.layout.height)}
+          isProfileOpen={profileOpen}
+          onOpenProfile={handleOpenProfile}
+          onCloseProfile={handleCloseProfile}
+          onEditAvatarPress={() => setEditPopupVisible(true)}
+        />
+        <EditAvatarPopup
+          visible={editPopupVisible}
+          onClose={() => setEditPopupVisible(false)}
         />
       </Animated.View>
     </View>

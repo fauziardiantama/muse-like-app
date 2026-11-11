@@ -5,9 +5,13 @@ import Icon from './Icon';
 // in chat and for the chevron-left back button in Settings, same place,
 // same size, same style. The button itself is the reused component;
 // only the icon name changes.
-export default function HeaderButton({ icon, onPress }) {
+export default function HeaderButton({ icon, onPress, disabled = false, style }) {
   return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.7} style={styles.button}>
+    <TouchableOpacity
+      onPress={onPress}
+      disabled={disabled}
+      activeOpacity={disabled ? 1 : 0.7}
+      style={[styles.button, style]}>
       <Icon name={icon} size={24} color="#fff" />
     </TouchableOpacity>
   );
