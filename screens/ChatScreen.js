@@ -14,6 +14,7 @@ import { BottomFade } from '../components/TopFade';
 import { getGroupFlags } from '../components/messageGrouping';
 import { ROUTES, useRouter } from '../navigation/router';
 import { useStore } from '../store';
+import ProfileTakeover from '../components/profile/ProfileTakeover';
 
 // Chat (home) page. Moved out of App.js verbatim: sidebar push,
 // keyboard lift, header overlay + fade, grouped bubbles, drag reply,
@@ -22,6 +23,7 @@ import { useStore } from '../store';
 export default function ChatScreen() {
   const { push } = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const [chatHeaderHeight, setChatHeaderHeight] = useState(148);
   const messages = useStore((s) => s.chat.messages);
   const replyTo = useStore((s) => s.chat.replyTo);
@@ -115,6 +117,12 @@ export default function ChatScreen() {
     setReplyTo(target);
   };
 
+  const handleOpenProfile = () => {
+    Keyboard.dismiss();
+    setSidebarOpen(false);
+    setProfileOpen(true);
+  };
+
   const handleSend = (text) => {
     const trimmed = text.trim();
     if (!trimmed) return;
@@ -195,8 +203,13 @@ export default function ChatScreen() {
         </View>
         <ChatHeader
           onMenuPress={() => setSidebarOpen((v) => !v)}
+          onProfilePress={handleOpenProfile}
           status={headerStatus}
           onLayout={(e) => setChatHeaderHeight(e.nativeEvent.layout.height)}
+        />
+        <ProfileTakeover
+          visible={profileOpen}
+          onClose={() => setProfileOpen(false)}
         />
       </Animated.View>
     </View>

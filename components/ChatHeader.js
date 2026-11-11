@@ -1,4 +1,4 @@
-import { StatusBar, StyleSheet, Text, View } from 'react-native';
+import { StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import HeaderButton from './HeaderButton';
 import { useStore } from '../store';
@@ -10,7 +10,7 @@ import { useStore } from '../store';
 // the header at rest, then scrolls up behind it: it fades gradually
 // over the whole header height and is fully blacked out by the time
 // it reaches the screen top. The pills sit on top of the gradient.
-export default function ChatHeader({ onMenuPress, status, onLayout }) {
+export default function ChatHeader({ onMenuPress, onProfilePress, status, onLayout }) {
   const displayName = useStore((s) => s.identity?.displayName || 'Ai-Chan');
   const avatarLetter = (displayName.trim()[0] || 'A').toUpperCase();
 
@@ -25,7 +25,10 @@ export default function ChatHeader({ onMenuPress, status, onLayout }) {
       />
       <View style={styles.row}>
         <HeaderButton icon="menu" onPress={onMenuPress} />
-        <View style={styles.center}>
+        <TouchableOpacity
+          activeOpacity={0.8}
+          style={styles.center}
+          onPress={onProfilePress}>
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>{avatarLetter}</Text>
           </View>
@@ -33,7 +36,7 @@ export default function ChatHeader({ onMenuPress, status, onLayout }) {
             <Text style={styles.name}>{displayName}</Text>
             {status ? <Text style={styles.status}>{status}</Text> : null}
           </View>
-        </View>
+        </TouchableOpacity>
         <View style={styles.sideSpacer} />
       </View>
     </View>
