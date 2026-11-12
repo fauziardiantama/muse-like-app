@@ -73,7 +73,9 @@ export default function ProfileTakeoverLayer({ visible, onClose, headerHeight = 
       pointerEvents={visible ? 'auto' : 'none'}
       style={[styles.takeoverLayer, animatedStyle]}>
       <Reanimated.View style={[styles.contentWrapper, { paddingTop: headerHeight }, animatedContentStyle]}>
-        <ProfileTabBar activeTab={activeTab} onSelectTab={setActiveTab} />
+        <View style={styles.tabBarWrapper}>
+          <ProfileTabBar activeTab={activeTab} onSelectTab={setActiveTab} />
+        </View>
         {activeTab === 'activity' && (
           <ActivityTabContent onSelectActivity={(act) => setSelectedActivity(act)} />
         )}
@@ -124,6 +126,10 @@ const styles = StyleSheet.create({
   },
   contentWrapper: {
     flex: 1,
+  },
+  tabBarWrapper: {
+    zIndex: 10,
+    elevation: 6,
   },
   emptyTab: {
     flex: 1,

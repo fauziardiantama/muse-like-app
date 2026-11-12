@@ -1,68 +1,148 @@
-import { Modal, ScrollView, StyleSheet, Text, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import {
+  Animated,
+  Easing,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  View,
+} from 'react-native';
 import Icon from '../Icon';
 
 // Bottom sheet detail matching Meta Muse ActivityDetailBottomSheet
 // Ground truth: Selesai pill, MAIN section, checkmark steps
+// Backdrop fades in/out in-place, only the bottom sheet slides up/down
 export default function ActivityDetailSheet({ visible, activity, onClose }) {
-  if (!visible || !activity) return null;
+  const [rendered, setRendered] = useState(visible);
+  const backdropOpacity = useRef(new Animated.Value(0)).current;
+  const sheetTranslateY = useRef(new Animated.Value(450)).current;
+
+  useEffect(() => {
+    if (visible) {
+      setRendered(true);
+      Animated.parallel([
+        Animated.timing(backdropOpacity, {
+          toValue: 1,
+          duration: 200,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(sheetTranslateY, {
+          toValue: 0,
+          duration: 260,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else if (rendered) {
+      Animated.parallel([
+        Animated.timing(backdropOpacity, {
+          toValue: 0,
+          duration: 180,
+          easing: Easing.in(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(sheetTranslateY, {
+          toValue: 450,
+          duration: 220,
+          easing: Easing.in(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]).start(({ finished }) => {
+        if (finished) {
+          setRendered(false);
+        }
+      });
+    }
+  }, [visible, rendered, backdropOpacity, sheetTranslateY]);
+
+  const handleClose = () => {
+    Animated.parallel([
+      Animated.timing(backdropOpacity, {
+        toValue: 0,
+        duration: 180,
+        easing: Easing.in(Easing.quad),
+        useNativeDriver: true,
+      }),
+      Animated.timing(sheetTranslateY, {
+        toValue: 450,
+        duration: 220,
+        easing: Easing.in(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]).start(({ finished }) => {
+      if (finished) {
+        setRendered(false);
+        onClose();
+      }
+    });
+  };
+
+  if (!rendered || !activity) return null;
 
   return (
-    <Modal transparent animationType="slide" visible={visible} onRequestClose={onClose}>
-      <TouchableWithoutFeedback onPress={onClose}>
-        <View style={styles.backdrop}>
-          <TouchableWithoutFeedback>
-            <View style={styles.sheetContainer}>
-              <View style={styles.grabber} />
+    <Modal transparent animationType="none" visible={rendered} onRequestClose={handleClose}>
+      <View style={styles.modalRoot}>
+        <TouchableWithoutFeedback onPress={handleClose}>
+          <Animated.View style={[styles.backdrop, { opacity: backdropOpacity }]} />
+        </TouchableWithoutFeedback>
 
-              <View style={styles.statusRow}>
-                <View style={styles.badgeSelesai}>
-                  <Text style={styles.badgeText}>Selesai</Text>
-                </View>
-                <Text style={styles.timestampText}>{activity.time || '10:26am'}</Text>
-              </View>
+        <Animated.View style={[styles.sheetContainer, { transform: [{ translateY: sheetTranslateY }] }]}>
+          <View style={styles.grabber} />
 
-              <ScrollView style={styles.contentScroll} showsVerticalScrollIndicator={false}>
-                <Text style={styles.titleText}>{activity.title}</Text>
-                <Text style={styles.subtitleText}>{activity.subtitle}</Text>
-
-                <View style={styles.bodyBox}>
-                  <Text style={styles.bodyText}>
-                    {activity.detail ||
-                      'Tindakan telah berhasil dijalankan dan diverifikasi dalam sistem memori asisten secara empiris.'}
-                  </Text>
-                </View>
-
-                <Text style={styles.sectionHeader}>MAIN</Text>
-
-                <View style={styles.stepCard}>
-                  <View style={styles.stepIconWrap}>
-                    <Icon name="check" size={16} color="#34c759" />
-                  </View>
-                  <View style={styles.stepInfo}>
-                    <Text style={styles.stepTitle}>Data memori telah diperoleh</Text>
-                    <Text style={styles.stepDesc}>
-                      {activity.stepDesc || 'Retrieved records from memory bank'}
-                    </Text>
-                  </View>
-                </View>
-
-                <TouchableOpacity activeOpacity={0.8} style={styles.closeBtn} onPress={onClose}>
-                  <Text style={styles.closeBtnText}>Tutup</Text>
-                </TouchableOpacity>
-              </ScrollView>
+          <View style={styles.statusRow}>
+            <View style={styles.badgeSelesai}>
+              <Text style={styles.badgeText}>Selesai</Text>
             </View>
-          </TouchableWithoutFeedback>
-        </View>
-      </TouchableWithoutFeedback>
+            <Text style={styles.timestampText}>{activity.time || '10:26am'}</Text>
+          </View>
+
+          <ScrollView style={styles.contentScroll} showsVerticalScrollIndicator={false}>
+            <Text style={styles.titleText}>{activity.title}</Text>
+            <Text style={styles.subtitleText}>{activity.subtitle}</Text>
+
+            <View style={styles.bodyBox}>
+              <Text style={styles.bodyText}>
+                {activity.detail ||
+                  'Tindakan telah berhasil dijalankan dan diverifikasi dalam sistem memori asisten secara empiris.'}
+              </Text>
+            </View>
+
+            <Text style={styles.sectionHeader}>MAIN</Text>
+
+            <View style={styles.stepCard}>
+              <View style={styles.stepIconWrap}>
+                <Icon name="check" size={16} color="#34c759" />
+              </View>
+              <View style={styles.stepInfo}>
+                <Text style={styles.stepTitle}>Data memori telah diperoleh</Text>
+                <Text style={styles.stepDesc}>
+                  {activity.stepDesc || 'Retrieved records from memory bank'}
+                </Text>
+              </View>
+            </View>
+
+            <TouchableOpacity activeOpacity={0.8} style={styles.closeBtn} onPress={handleClose}>
+              <Text style={styles.closeBtnText}>Tutup</Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </Animated.View>
+      </View>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
+  modalRoot: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
     justifyContent: 'flex-end',
+  },
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
   },
   sheetContainer: {
     backgroundColor: '#1c1c1e',
@@ -74,6 +154,8 @@ const styles = StyleSheet.create({
     maxHeight: '75%',
     borderWidth: 1,
     borderColor: '#2c2c2e',
+    zIndex: 10,
+    elevation: 20,
   },
   grabber: {
     width: 36,

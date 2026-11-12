@@ -168,6 +168,18 @@ runTest('Behavioral 5: Authentic Meta Muse Profile Menu & Segmented Tabs Contrac
   assert(tabBarContent.includes("'tasks'"), 'ProfileTabBar must include tasks tab');
   assert(tabBarContent.includes("'display'"), 'ProfileTabBar must include display tab');
   assert(tabBarContent.includes("'history'"), 'ProfileTabBar must include history tab');
+  assert(tabBarContent.includes('slidingIndicator'), 'ProfileTabBar must implement sliding animated pill indicator');
+
+  const activityContent = fs.readFileSync(activityPath, 'utf8');
+  assert(activityContent.includes('unreadBadgeRight'), 'Activity alert dot must be positioned on the right side');
+  assert(!activityContent.includes('styles.alertDot'), 'Activity alert dot must NOT be placed inside the icon container');
+  assert(activityContent.includes('SAMPLE_ACTIVITIES_TODAY') && activityContent.includes('SAMPLE_ACTIVITIES_YESTERDAY'),
+    'ActivityTabContent must supply full scrollable activity history across multiple date sections');
+
+  const detailContent = fs.readFileSync(detailPath, 'utf8');
+  assert(detailContent.includes('animationType="none"'), 'ActivityDetailSheet must use animationType="none" to isolate backdrop from sheet motion');
+  assert(detailContent.includes('backdropOpacity'), 'ActivityDetailSheet must animate backdrop opacity independently');
+  assert(detailContent.includes('sheetTranslateY'), 'ActivityDetailSheet must animate sheet translateY separately from backdrop');
 
   const iconContent = fs.readFileSync(iconPath, 'utf8');
   assert(iconContent.includes('list: 61841'), 'Icon.js must support list glyph');
@@ -179,6 +191,7 @@ runTest('Behavioral 5: Authentic Meta Muse Profile Menu & Segmented Tabs Contrac
   assert(layerContent.includes('ProfileTabBar'), 'ProfileTakeoverLayer must render ProfileTabBar');
   assert(layerContent.includes('ActivityTabContent'), 'ProfileTakeoverLayer must render ActivityTabContent');
   assert(layerContent.includes('ActivityDetailSheet'), 'ProfileTakeoverLayer must render ActivityDetailSheet');
+  assert(layerContent.includes('tabBarWrapper'), 'ProfileTakeoverLayer must elevate tab bar above scroll content');
 });
 
 // ---------------------------------------------------------------------
