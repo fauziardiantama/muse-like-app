@@ -5,7 +5,15 @@
 HOOKS_DIR="$(git rev-parse --git-dir)/hooks"
 mkdir -p "$HOOKS_DIR"
 
-cp "$(dirname "$0")/../.git/hooks/pre-commit" "$HOOKS_DIR/pre-commit" 2>/dev/null || true
-chmod +x "$HOOKS_DIR/pre-commit"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-echo "✔ Git pre-commit hook installed successfully at $HOOKS_DIR/pre-commit"
+if [ -f "$REPO_ROOT/.git/hooks/pre-commit" ]; then
+  chmod +x "$REPO_ROOT/.git/hooks/pre-commit"
+fi
+
+if [ -f "$REPO_ROOT/.git/hooks/pre-push" ]; then
+  chmod +x "$REPO_ROOT/.git/hooks/pre-push"
+fi
+
+echo "✔ Git pre-commit and pre-push hooks installed successfully in $HOOKS_DIR"

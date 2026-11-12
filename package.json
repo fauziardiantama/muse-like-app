@@ -26,8 +26,10 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "check": "node scripts/verify-contracts.js && python3 scripts/session_telemetry.py --verify-only",
+    "check": "node scripts/verify-interactions.js && node scripts/verify-contracts.js && python3 scripts/session_telemetry.py --verify-only && python3 scripts/verify-summary.py",
+    "verify-interactions": "node scripts/verify-interactions.js",
     "verify-contracts": "node scripts/verify-contracts.js",
+    "verify-summary": "python3 scripts/verify-summary.py",
     "telemetry": "python3 scripts/session_telemetry.py",
     "prepare": "bash scripts/install_hooks.sh"
   },
