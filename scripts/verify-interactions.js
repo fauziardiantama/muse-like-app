@@ -151,6 +151,37 @@ runTest('Behavioral 4: ChatScreen mounts takeover layer with proper sibling hier
 });
 
 // ---------------------------------------------------------------------
+// TEST 5: Meta Muse Authentic Profile Menu & Segmented Tab Contract
+// ---------------------------------------------------------------------
+runTest('Behavioral 5: Authentic Meta Muse Profile Menu & Segmented Tabs Contract', () => {
+  const tabBarPath = path.resolve(__dirname, '../components/profile/ProfileTabBar.js');
+  const activityPath = path.resolve(__dirname, '../components/profile/ActivityTabContent.js');
+  const detailPath = path.resolve(__dirname, '../components/profile/ActivityDetailSheet.js');
+  const iconPath = path.resolve(__dirname, '../components/Icon.js');
+
+  assert(fs.existsSync(tabBarPath), 'ProfileTabBar.js must exist');
+  assert(fs.existsSync(activityPath), 'ActivityTabContent.js must exist');
+  assert(fs.existsSync(detailPath), 'ActivityDetailSheet.js must exist');
+
+  const tabBarContent = fs.readFileSync(tabBarPath, 'utf8');
+  assert(tabBarContent.includes("'activity'"), 'ProfileTabBar must include activity tab');
+  assert(tabBarContent.includes("'tasks'"), 'ProfileTabBar must include tasks tab');
+  assert(tabBarContent.includes("'display'"), 'ProfileTabBar must include display tab');
+  assert(tabBarContent.includes("'history'"), 'ProfileTabBar must include history tab');
+
+  const iconContent = fs.readFileSync(iconPath, 'utf8');
+  assert(iconContent.includes('list: 61841'), 'Icon.js must support list glyph');
+  assert(iconContent.includes('tv: 61948'), 'Icon.js must support tv glyph');
+  assert(iconContent.includes('clock: 61753'), 'Icon.js must support clock glyph');
+  assert(iconContent.includes('check: 61739'), 'Icon.js must support check glyph');
+
+  const layerContent = fs.readFileSync(path.resolve(__dirname, '../components/profile/ProfileTakeoverLayer.js'), 'utf8');
+  assert(layerContent.includes('ProfileTabBar'), 'ProfileTakeoverLayer must render ProfileTabBar');
+  assert(layerContent.includes('ActivityTabContent'), 'ProfileTakeoverLayer must render ActivityTabContent');
+  assert(layerContent.includes('ActivityDetailSheet'), 'ProfileTakeoverLayer must render ActivityDetailSheet');
+});
+
+// ---------------------------------------------------------------------
 // REPORT
 // ---------------------------------------------------------------------
 console.log('\n------------------------------------------------------');

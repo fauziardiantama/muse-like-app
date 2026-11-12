@@ -54,6 +54,13 @@ const GLYPHS = {
   'edit-2': 61792,
   user: 61957,
   type: 61951,
+  list: 61841,
+  clock: 61753,
+  tv: 61948,
+  check: 61739,
+  globe: 61820,
+  share: 61908,
+  'more-vertical': 61865,
 };
 
 export default function Icon({ name, size = 24, color = '#fff', style }) {

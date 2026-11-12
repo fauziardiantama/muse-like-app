@@ -210,6 +210,7 @@ export default function ChatScreen() {
         <ProfileTakeoverLayer
           visible={profileOpen}
           onClose={handleCloseProfile}
+          headerHeight={chatHeaderHeight}
         />
         <ChatHeader
           onMenuPress={() => setSidebarOpen((v) => !v)}
