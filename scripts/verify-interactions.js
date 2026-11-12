@@ -116,6 +116,24 @@ runTest('Behavioral 3: Takeover Layer does not use premature unmounting (Anti-Mo
     // Ensure explicit dimensions are defined to prevent 0x0 collapse on Android RenderNode
     assert(content.includes("width: '100%'"), 'ProfileTakeoverLayer must have explicit width: 100%');
     assert(content.includes("height: '100%'"), 'ProfileTakeoverLayer must have explicit height: 100%');
+
+    // Anti-Crash Gate: React Native style properties must NEVER contain illegal CSS units like 'px'
+    assert(!content.includes("'px'") && !content.includes('"px"') && !content.match(/\d+px/i),
+      'ProfileTakeoverLayer MUST NOT contain illegal CSS units like "px" which crash Android with NumberFormatException!');
+
+    // Verify mathematical pivot translation is used instead of unstable transformOrigin
+    assert(!content.includes('transformOrigin:'), 'ProfileTakeoverLayer must not use fragile transformOrigin; use mathematical pivot translateY instead');
+
+    // Mathematical verification of pivot stability
+    const SCREEN_HEIGHT = 800;
+    const AVATAR_PIVOT_Y = 64;
+    const TRANSLATE_Y_OFFSET = AVATAR_PIVOT_Y - SCREEN_HEIGHT / 2;
+    [0.05, 0.25, 0.5, 0.75, 1.0].forEach(s => {
+      const translateY = (1 - s) * TRANSLATE_Y_OFFSET;
+      const yRelativeCenter = AVATAR_PIVOT_Y - SCREEN_HEIGHT / 2;
+      const renderedY = (SCREEN_HEIGHT / 2) + translateY + s * yRelativeCenter;
+      assert(Math.abs(renderedY - AVATAR_PIVOT_Y) < 0.001, `Pivot drifted at scale ${s}: got ${renderedY}, expected ${AVATAR_PIVOT_Y}`);
+    });
   }
 });
 

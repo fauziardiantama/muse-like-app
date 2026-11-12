@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { BackHandler, StyleSheet } from 'react-native';
+import { BackHandler, Dimensions, StyleSheet } from 'react-native';
 import Reanimated, {
   Easing,
   Extrapolation,
@@ -11,7 +11,12 @@ import Reanimated, {
 
 // Pure blank black takeover layer expanding from behind the avatar
 // Always mounted in render tree to eliminate React/Reanimated mount race conditions.
-// Covers entire chat, composer, and tab bar smoothly without any slide-up.
+// Uses mathematical pivot translation relative to view center to radiate outwards from the avatar
+// without relying on fragile or crash-inducing transformOrigin properties.
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+const AVATAR_PIVOT_Y = 64; // Vertical center behind header avatar
+const TRANSLATE_Y_OFFSET = AVATAR_PIVOT_Y - SCREEN_HEIGHT / 2;
+
 export default function ProfileTakeoverLayer({ visible, onClose }) {
   const progress = useSharedValue(0);
 
@@ -35,15 +40,16 @@ export default function ProfileTakeoverLayer({ visible, onClose }) {
   }, [visible, onClose]);
 
   const animatedStyle = useAnimatedStyle(() => {
-    const scale = interpolate(progress.value, [0, 1], [0.1, 1], Extrapolation.CLAMP);
+    const scale = interpolate(progress.value, [0, 1], [0.05, 1], Extrapolation.CLAMP);
     const opacity = interpolate(progress.value, [0, 1], [0, 1], Extrapolation.CLAMP);
+    const translateY = (1 - scale) * TRANSLATE_Y_OFFSET;
+
     return {
       opacity,
       transform: [
-        { translateY: interpolate(progress.value, [0, 1], [-200, 0], Extrapolation.CLAMP) },
+        { translateY },
         { scale },
       ],
-      transformOrigin: ['50%', '56px', 0],
     };
   });
 
