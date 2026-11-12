@@ -35,11 +35,15 @@ export default function ProfileTakeoverLayer({ visible, onClose }) {
   }, [visible, onClose]);
 
   const animatedStyle = useAnimatedStyle(() => {
-    const scale = interpolate(progress.value, [0, 1], [0.8, 1], Extrapolation.CLAMP);
+    const scale = interpolate(progress.value, [0, 1], [0.1, 1], Extrapolation.CLAMP);
     const opacity = interpolate(progress.value, [0, 1], [0, 1], Extrapolation.CLAMP);
     return {
       opacity,
-      transform: [{ scale }],
+      transform: [
+        { translateY: interpolate(progress.value, [0, 1], [-200, 0], Extrapolation.CLAMP) },
+        { scale },
+      ],
+      transformOrigin: ['50%', '56px', 0],
     };
   });
 
