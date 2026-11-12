@@ -1,8 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
-  Animated,
-  Easing,
-  Modal,
+  Dimensions,
   ScrollView,
   StyleSheet,
   Text,
@@ -10,138 +8,128 @@ import {
   TouchableWithoutFeedback,
   View,
 } from 'react-native';
+import Reanimated, {
+  Easing,
+  Extrapolation,
+  interpolate,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import Icon from '../Icon';
 
-// Bottom sheet detail matching Meta Muse ActivityDetailBottomSheet
-// Ground truth: Selesai pill, MAIN section, checkmark steps
-// Backdrop fades in/out in-place, only the bottom sheet slides up/down
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+
+// Authentic Meta Muse Activity Detail In-Tree View Layer
+// - No Android Dialog OS Modal
+// - Backdrop fades in/out in-place
+// - Sheet smoothly slides up/down from bottom
 export default function ActivityDetailSheet({ visible, activity, onClose }) {
-  const [rendered, setRendered] = useState(visible);
-  const backdropOpacity = useRef(new Animated.Value(0)).current;
-  const sheetTranslateY = useRef(new Animated.Value(450)).current;
+  // Keep last active activity data while closing animation finishes
+  const [cachedActivity, setCachedActivity] = useState(activity);
+  const progress = useSharedValue(0);
 
   useEffect(() => {
-    if (visible) {
-      setRendered(true);
-      Animated.parallel([
-        Animated.timing(backdropOpacity, {
-          toValue: 1,
-          duration: 200,
-          easing: Easing.out(Easing.quad),
-          useNativeDriver: true,
-        }),
-        Animated.timing(sheetTranslateY, {
-          toValue: 0,
-          duration: 260,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }),
-      ]).start();
-    } else if (rendered) {
-      Animated.parallel([
-        Animated.timing(backdropOpacity, {
-          toValue: 0,
-          duration: 180,
-          easing: Easing.in(Easing.quad),
-          useNativeDriver: true,
-        }),
-        Animated.timing(sheetTranslateY, {
-          toValue: 450,
-          duration: 220,
-          easing: Easing.in(Easing.cubic),
-          useNativeDriver: true,
-        }),
-      ]).start(({ finished }) => {
-        if (finished) {
-          setRendered(false);
-        }
-      });
+    if (activity) {
+      setCachedActivity(activity);
     }
-  }, [visible, rendered, backdropOpacity, sheetTranslateY]);
+  }, [activity]);
 
-  const handleClose = () => {
-    Animated.parallel([
-      Animated.timing(backdropOpacity, {
-        toValue: 0,
-        duration: 180,
-        easing: Easing.in(Easing.quad),
-        useNativeDriver: true,
-      }),
-      Animated.timing(sheetTranslateY, {
-        toValue: 450,
-        duration: 220,
-        easing: Easing.in(Easing.cubic),
-        useNativeDriver: true,
-      }),
-    ]).start(({ finished }) => {
-      if (finished) {
-        setRendered(false);
-        onClose();
-      }
+  useEffect(() => {
+    const isVisible = visible && !!cachedActivity;
+    progress.value = withTiming(isVisible ? 1 : 0, {
+      duration: isVisible ? 280 : 220,
+      easing: isVisible ? Easing.out(Easing.cubic) : Easing.in(Easing.cubic),
     });
-  };
+  }, [visible, cachedActivity, progress]);
 
-  if (!rendered || !activity) return null;
+  const backdropAnimatedStyle = useAnimatedStyle(() => {
+    const opacity = interpolate(progress.value, [0, 1], [0, 1], Extrapolation.CLAMP);
+    return { opacity };
+  });
+
+  const sheetAnimatedStyle = useAnimatedStyle(() => {
+    const translateY = interpolate(progress.value, [0, 1], [SCREEN_HEIGHT, 0], Extrapolation.CLAMP);
+    return {
+      transform: [{ translateY }],
+    };
+  });
+
+  if (!cachedActivity) return null;
 
   return (
-    <Modal transparent animationType="none" visible={rendered} onRequestClose={handleClose}>
-      <View style={styles.modalRoot}>
-        <TouchableWithoutFeedback onPress={handleClose}>
-          <Animated.View style={[styles.backdrop, { opacity: backdropOpacity }]} />
-        </TouchableWithoutFeedback>
+    <Reanimated.View
+      pointerEvents={visible ? 'auto' : 'none'}
+      style={styles.sheetOverlay}>
+      <TouchableWithoutFeedback onPress={onClose}>
+        <Reanimated.View style={[styles.backdrop, backdropAnimatedStyle]} />
+      </TouchableWithoutFeedback>
 
-        <Animated.View style={[styles.sheetContainer, { transform: [{ translateY: sheetTranslateY }] }]}>
-          <View style={styles.grabber} />
+      <Reanimated.View style={[styles.sheetContainer, sheetAnimatedStyle]}>
+        <View style={styles.grabber} />
 
-          <View style={styles.statusRow}>
-            <View style={styles.badgeSelesai}>
-              <Text style={styles.badgeText}>Selesai</Text>
-            </View>
-            <Text style={styles.timestampText}>{activity.time || '10:26am'}</Text>
+        <View style={styles.statusRow}>
+          <View style={styles.badgeSelesai}>
+            <Text style={styles.badgeText}>Selesai</Text>
+          </View>
+          <Text style={styles.timestampText}>{cachedActivity.time || '10:26am'}</Text>
+        </View>
+
+        <ScrollView style={styles.contentScroll} showsVerticalScrollIndicator={false}>
+          <Text style={styles.titleText}>{cachedActivity.title}</Text>
+          <Text style={styles.subtitleText}>{cachedActivity.subtitle}</Text>
+
+          <View style={styles.bodyBox}>
+            <Text style={styles.bodyText}>
+              {cachedActivity.detail ||
+                'Tindakan telah berhasil dijalankan dan diverifikasi dalam sistem memori asisten secara empiris.'}
+            </Text>
           </View>
 
-          <ScrollView style={styles.contentScroll} showsVerticalScrollIndicator={false}>
-            <Text style={styles.titleText}>{activity.title}</Text>
-            <Text style={styles.subtitleText}>{activity.subtitle}</Text>
+          <Text style={styles.sectionHeader}>MAIN</Text>
 
-            <View style={styles.bodyBox}>
-              <Text style={styles.bodyText}>
-                {activity.detail ||
-                  'Tindakan telah berhasil dijalankan dan diverifikasi dalam sistem memori asisten secara empiris.'}
+          <View style={styles.stepCard}>
+            <View style={styles.stepIconWrap}>
+              <Icon name="check" size={16} color="#34c759" />
+            </View>
+            <View style={styles.stepInfo}>
+              <Text style={styles.stepTitle}>Data memori telah diperoleh</Text>
+              <Text style={styles.stepDesc}>
+                {cachedActivity.stepDesc || 'Retrieved records from memory bank'}
               </Text>
             </View>
+          </View>
 
-            <Text style={styles.sectionHeader}>MAIN</Text>
-
-            <View style={styles.stepCard}>
-              <View style={styles.stepIconWrap}>
-                <Icon name="check" size={16} color="#34c759" />
-              </View>
-              <View style={styles.stepInfo}>
-                <Text style={styles.stepTitle}>Data memori telah diperoleh</Text>
-                <Text style={styles.stepDesc}>
-                  {activity.stepDesc || 'Retrieved records from memory bank'}
-                </Text>
-              </View>
-            </View>
-
-            <TouchableOpacity activeOpacity={0.8} style={styles.closeBtn} onPress={handleClose}>
-              <Text style={styles.closeBtnText}>Tutup</Text>
-            </TouchableOpacity>
-          </ScrollView>
-        </Animated.View>
-      </View>
-    </Modal>
+          <TouchableOpacity activeOpacity={0.8} style={styles.closeBtn} onPress={onClose}>
+            <Text style={styles.closeBtnText}>Tutup</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </Reanimated.View>
+    </Reanimated.View>
   );
 }
 
 const styles = StyleSheet.create({
-  modalRoot: {
-    flex: 1,
+  sheetOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    width: '100%',
+    height: '100%',
     justifyContent: 'flex-end',
+    zIndex: 100,
+    elevation: 30,
   },
   backdrop: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    width: '100%',
+    height: '100%',
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
   },
   sheetContainer: {

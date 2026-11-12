@@ -177,9 +177,10 @@ runTest('Behavioral 5: Authentic Meta Muse Profile Menu & Segmented Tabs Contrac
     'ActivityTabContent must supply full scrollable activity history across multiple date sections');
 
   const detailContent = fs.readFileSync(detailPath, 'utf8');
-  assert(detailContent.includes('animationType="none"'), 'ActivityDetailSheet must use animationType="none" to isolate backdrop from sheet motion');
-  assert(detailContent.includes('backdropOpacity'), 'ActivityDetailSheet must animate backdrop opacity independently');
-  assert(detailContent.includes('sheetTranslateY'), 'ActivityDetailSheet must animate sheet translateY separately from backdrop');
+  assert(detailContent.includes('ActivityDetailSheet'), 'ActivityDetailSheet must be defined');
+  assert(!detailContent.includes('<Modal'), 'ActivityDetailSheet must be an In-Tree View Layer without OS Dialog Modal');
+  assert(detailContent.includes('backdropAnimatedStyle'), 'ActivityDetailSheet must animate backdrop opacity independently');
+  assert(detailContent.includes('sheetAnimatedStyle'), 'ActivityDetailSheet must animate sheet translateY separately from backdrop');
 
   const iconContent = fs.readFileSync(iconPath, 'utf8');
   assert(iconContent.includes('list: 61841'), 'Icon.js must support list glyph');
