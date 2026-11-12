@@ -113,6 +113,9 @@ runTest('Behavioral 3: Takeover Layer does not use premature unmounting (Anti-Mo
     // Ensure dangerous pattern 'if (!mounted) return null' is NOT present
     assert(!content.includes('if (!mounted) return null'), 'ProfileTakeoverLayer MUST NOT return null on mount!');
     assert(content.includes('pointerEvents'), 'ProfileTakeoverLayer MUST control visibility via pointerEvents');
+    // Ensure explicit dimensions are defined to prevent 0x0 collapse on Android RenderNode
+    assert(content.includes("width: '100%'"), 'ProfileTakeoverLayer must have explicit width: 100%');
+    assert(content.includes("height: '100%'"), 'ProfileTakeoverLayer must have explicit height: 100%');
   }
 });
 
