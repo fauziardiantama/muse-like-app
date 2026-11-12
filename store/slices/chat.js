@@ -2,7 +2,7 @@
 // Chat slice. Connects to ZeroClaw WebSocket & REST endpoints.
 // Persists main session per agent so returning to the chat page resumes
 // the ongoing primary conversation rather than vivifying a new empty session.
-import { getChatWebSocketUrl, getSessionMessages } from '../../api/client';
+import { getChatWebSocketUrl, getSessionMessages, getLogs } from '../../api/client';
 
 let activeSocket = null;
 
@@ -160,6 +160,8 @@ export const createChatSlice = (set, get) => ({
     replyTo: null,
     mainSessionIds: {},
     activeSessionId: null,
+    toolActivities: [],
+    loadingActivities: false,
     wsStatus: 'disconnected', // 'disconnected' | 'connecting' | 'connected' | 'streaming'
     isStreaming: false,
     loading: false,
@@ -375,6 +377,48 @@ export const createChatSlice = (set, get) => ({
       });
       // Re-init as clean new chat
       await get().chat.initChat(agent);
+    },
+
+    fetchToolActivities: async () => {
+      try {
+        get().connection?.syncClientConfig?.();
+        set((s) => ({ chat: { ...s.chat, loadingActivities: true } }));
+        const res = await getLogs();
+        const events = Array.isArray(res?.events)
+          ? res.events
+          : (Array.isArray(res) ? res : []);
+
+        const state = get();
+        const currentSession = state.chat.activeSessionId ||
+          state.chat.mainSessionIds?.[state.identity?.activeAgent];
+
+        const toolEvents = events.filter((ev) => {
+          // Kriteria 1: Hanya di conversation/sesi yang sama
+          const itemSession = ev.attributes?.session_key || ev.attributes?.session_id;
+          const matchesSession = !currentSession || (itemSession && (
+            itemSession === currentSession ||
+            itemSession === `gw_${currentSession}` ||
+            itemSession.includes(currentSession)
+          ));
+          // Kriteria 2: Tipe tool
+          const isTool = ev.event?.category === 'tool' || Boolean(ev.attributes?.tool);
+          return matchesSession && isTool;
+        });
+
+        set((s) => ({
+          chat: {
+            ...s.chat,
+            toolActivities: toolEvents,
+            loadingActivities: false,
+          },
+        }));
+        return toolEvents;
+      } catch (err) {
+        set((s) => ({
+          chat: { ...s.chat, loadingActivities: false },
+        }));
+        return [];
+      }
     },
   },
 });

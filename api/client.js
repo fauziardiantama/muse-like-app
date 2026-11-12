@@ -164,6 +164,10 @@ export function getSessions() {
   return request(ENDPOINTS.sessions.list);
 }
 
+export function getLogs(query = {}) {
+  return request(ENDPOINTS.logs.list, { query });
+}
+
 export function getSessionMessages(sessionId) {
   return request(ENDPOINTS.sessions.messages, { params: [sessionId] });
 }

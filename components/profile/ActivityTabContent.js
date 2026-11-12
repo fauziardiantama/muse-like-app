@@ -1,6 +1,86 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Icon from '../Icon';
+import { useStore } from '../../store';
+
+function getToolIconConfig(toolName) {
+  const lower = (toolName || '').toLowerCase();
+  if (lower.includes('shell') || lower.includes('bash') || lower.includes('terminal')) {
+    return { icon: 'zap', iconBg: '#422006', iconColor: '#facc15' };
+  }
+  if (lower.includes('search') || lower.includes('web') || lower.includes('query')) {
+    return { icon: 'search', iconBg: '#374151', iconColor: '#9ca3af' };
+  }
+  if (lower.includes('file') || lower.includes('read') || lower.includes('write')) {
+    return { icon: 'file-text', iconBg: '#1e293b', iconColor: '#38bdf8' };
+  }
+  if (lower.includes('net') || lower.includes('http') || lower.includes('api')) {
+    return { icon: 'globe', iconBg: '#1e3a8a', iconColor: '#60a5fa' };
+  }
+  return { icon: 'zap', iconBg: '#27272a', iconColor: '#d1d5db' };
+}
+
+function formatTime(isoString) {
+  if (!isoString) return '';
+  try {
+    const d = new Date(isoString);
+    if (isNaN(d.getTime())) return String(isoString);
+    let hours = d.getHours();
+    const minutes = d.getMinutes();
+    const ampm = hours >= 12 ? 'pm' : 'am';
+    hours = hours % 12;
+    hours = hours ? hours : 12;
+    const strMinutes = minutes < 10 ? '0' + minutes : minutes;
+    const strHours = hours < 10 ? '0' + hours : hours;
+    return `${strHours}:${strMinutes}${ampm}`;
+  } catch {
+    return String(isoString);
+  }
+}
+
+function isSameDay(d1, d2) {
+  return (
+    d1.getFullYear() === d2.getFullYear() &&
+    d1.getMonth() === d2.getMonth() &&
+    d1.getDate() === d2.getDate()
+  );
+}
+
+function isYesterday(d) {
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  return isSameDay(d, yesterday);
+}
+
+function formatToolTitle(rawTool) {
+  if (!rawTool) return 'Tool';
+  const str = String(rawTool);
+  return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+function mapLogToActivity(ev, index) {
+  const rawTool = ev.attributes?.tool || 'Tool';
+  const title = formatToolTitle(rawTool);
+  const subtitle = ev.message || (ev.event?.outcome === 'failure' ? 'Failed' : 'Executed');
+  const timestamp = ev['@timestamp'] || ev.timestamp;
+  const time = formatTime(timestamp);
+  const isFailure = ev.event?.outcome === 'failure' || (ev.severity_number && ev.severity_number >= 13);
+  const iconConfig = getToolIconConfig(rawTool);
+
+  return {
+    id: ev.id || `log-${index}-${Date.now()}`,
+    icon: iconConfig.icon,
+    iconBg: iconConfig.iconBg,
+    iconColor: iconConfig.iconColor,
+    title,
+    subtitle,
+    time,
+    hasAlertDot: isFailure,
+    rawDate: timestamp ? new Date(timestamp) : new Date(),
+    detail: 'Detail eksekusi tool tercatat di server.',
+    stepDesc: `Executed ${rawTool} operation`,
+  };
+}
 
 const SAMPLE_ACTIVITIES_TODAY = [
   {
@@ -133,13 +213,42 @@ const SAMPLE_ACTIVITIES_YESTERDAY = [
 
 export default function ActivityTabContent({ onSelectActivity }) {
   const [refreshing, setRefreshing] = useState(false);
+  const toolActivities = useStore((s) => s.chat.toolActivities);
+  const fetchToolActivities = useStore((s) => s.chat.fetchToolActivities);
 
-  const handleRefresh = () => {
+  useEffect(() => {
+    fetchToolActivities();
+  }, [fetchToolActivities]);
+
+  const handleRefresh = async () => {
     setRefreshing(true);
-    setTimeout(() => {
+    try {
+      await fetchToolActivities();
+    } finally {
       setRefreshing(false);
-    }, 800);
+    }
   };
+
+  const hasLiveLogs = Array.isArray(toolActivities) && toolActivities.length > 0;
+  let todayActivities = SAMPLE_ACTIVITIES_TODAY;
+  let yesterdayActivities = SAMPLE_ACTIVITIES_YESTERDAY;
+
+  if (hasLiveLogs) {
+    const mapped = toolActivities.map(mapLogToActivity);
+    const todayList = [];
+    const yesterdayList = [];
+
+    mapped.forEach((item) => {
+      if (isYesterday(item.rawDate)) {
+        yesterdayList.push(item);
+      } else {
+        todayList.push(item);
+      }
+    });
+
+    todayActivities = todayList;
+    yesterdayActivities = yesterdayList;
+  }
 
   const renderRow = (item) => (
     <TouchableOpacity
@@ -183,15 +292,29 @@ export default function ActivityTabContent({ onSelectActivity }) {
         />
       }>
       <Text style={styles.dateHeader}>Hari ini</Text>
-      {SAMPLE_ACTIVITIES_TODAY.map(renderRow)}
+      {todayActivities.length > 0 ? (
+        todayActivities.map(renderRow)
+      ) : (
+        <Text style={styles.emptyNotice}>Tidak ada aktivitas tool hari ini.</Text>
+      )}
 
-      <Text style={[styles.dateHeader, styles.dateHeaderSecondary]}>Kemarin</Text>
-      {SAMPLE_ACTIVITIES_YESTERDAY.map(renderRow)}
+      {yesterdayActivities.length > 0 && (
+        <>
+          <Text style={[styles.dateHeader, styles.dateHeaderSecondary]}>Kemarin</Text>
+          {yesterdayActivities.map(renderRow)}
+        </>
+      )}
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
+  emptyNotice: {
+    color: '#8e8e93',
+    fontSize: 13,
+    fontFamily: 'OptimisticApp',
+    marginVertical: 8,
+  },
   container: {
     flex: 1,
     zIndex: 1,

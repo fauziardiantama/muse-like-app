@@ -73,6 +73,9 @@ export const ENDPOINTS = {
     drift: { method: 'GET', path: '/api/config/drift', auth: true },
     renameMapKey: { method: 'POST', path: '/api/config/rename-map-key', auth: true },
   },
+  logs: {
+    list: { method: 'GET', path: '/api/logs', auth: true },
+  },
   admin: {
     sopPending: { method: 'GET', path: '/admin/sop/pending', auth: true },
     sopApprove: { method: 'POST', path: '/admin/sop/approve', auth: true },
