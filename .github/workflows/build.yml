@@ -1,4 +1,4 @@
-name: Build Android APK (Release arm64-v8a)
+name: Build Android APK (Release arm64-v8a & x86_64)
 
 on:
   push:
@@ -10,6 +10,13 @@ permissions:
 jobs:
   build-android:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - arch: arm64-v8a
+            name: arm64
+          - arch: x86_64
+            name: x86_64
     steps:
       - uses: actions/checkout@v4
 
@@ -42,14 +49,14 @@ jobs:
           echo "Verified android/app/src/main/assets/fonts contents:"
           ls -lh android/app/src/main/assets/fonts
 
-      - name: Configure arm64-v8a architecture filter
+      - name: Configure architecture filter (${{ matrix.arch }})
         run: |
           # Use printf with leading newline so it never appends to the trailing JSON property in gradle.properties
-          printf "\nreactNativeArchitectures=arm64-v8a\n" >> android/gradle.properties
+          printf "\nreactNativeArchitectures=${{ matrix.arch }}\n" >> android/gradle.properties
           tail -n 10 android/gradle.properties
 
-      - name: Build optimized Release APK (arm64-v8a)
-        run: cd android && ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a --no-daemon
+      - name: Build optimized Release APK (${{ matrix.arch }})
+        run: cd android && ./gradlew assembleRelease -PreactNativeArchitectures=${{ matrix.arch }} --no-daemon
 
       - name: Locate and prepare release APK
         run: |
@@ -62,30 +69,46 @@ jobs:
           echo "Found APK: $APK"
           ls -lh "$APK"
           mkdir -p output
-          cp "$APK" output/app-release-arm64.apk
+          cp "$APK" "output/app-release-${{ matrix.name }}.apk"
           echo "Final APK Size:"
-          ls -lh output/app-release-arm64.apk
+          ls -lh "output/app-release-${{ matrix.name }}.apk"
 
       - name: Verify APK contains bundle and fonts
         run: |
-          unzip -l output/app-release-arm64.apk | grep "assets/" || true
-          unzip -l output/app-release-arm64.apk | grep -q "assets/index.android.bundle" || (echo "ERROR: index.android.bundle NOT in APK" && exit 1)
-          unzip -l output/app-release-arm64.apk | grep -q "assets/fonts/assets_fonts_feather.ttf" || (echo "ERROR: assets_fonts_feather.ttf NOT in APK assets/fonts/" && exit 1)
-          unzip -l output/app-release-arm64.apk | grep -q "assets/fonts/Feather.ttf" || (echo "ERROR: Feather.ttf NOT in APK assets/fonts/" && exit 1)
-          unzip -l output/app-release-arm64.apk | grep -q "assets/fonts/OptimisticApp.ttf" || (echo "ERROR: OptimisticApp.ttf NOT in APK assets/fonts/" && exit 1)
+          APK_FILE="output/app-release-${{ matrix.name }}.apk"
+          unzip -l "$APK_FILE" | grep "assets/" || true
+          unzip -l "$APK_FILE" | grep -q "assets/index.android.bundle" || (echo "ERROR: index.android.bundle NOT in APK" && exit 1)
+          unzip -l "$APK_FILE" | grep -q "assets/fonts/assets_fonts_feather.ttf" || (echo "ERROR: assets_fonts_feather.ttf NOT in APK assets/fonts/" && exit 1)
+          unzip -l "$APK_FILE" | grep -q "assets/fonts/Feather.ttf" || (echo "ERROR: Feather.ttf NOT in APK assets/fonts/" && exit 1)
+          unzip -l "$APK_FILE" | grep -q "assets/fonts/OptimisticApp.ttf" || (echo "ERROR: OptimisticApp.ttf NOT in APK assets/fonts/" && exit 1)
           echo "ALL CHECKS PASSED: Bundle and custom fonts are 100% verified inside assets/fonts/!"
 
-      - name: Upload APK
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: muse-like-app-release-arm64
-          path: output/app-release-arm64.apk
+          name: app-release-${{ matrix.name }}
+          path: output/app-release-${{ matrix.name }}.apk
 
-      - name: Publish APK to GitHub Release
+  publish-release:
+    needs: build-android
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all APK artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Publish APKs to GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "preview-${{ github.run_number }}" output/app-release-arm64.apk \
-            --title "Preview build ${{ github.run_number }} (arm64-v8a)" \
-            --notes "Optimized Release APK for arm64-v8a (stripped C++ symbols, ABI filtered) built by GitHub Actions." \
+          mkdir -p release_apks
+          find artifacts -type f -name "*.apk" -exec cp {} release_apks/ \;
+          echo "Collected release APKs:"
+          ls -lh release_apks/
+          gh release create "preview-${{ github.run_number }}" release_apks/*.apk \
+            --title "Preview build ${{ github.run_number }} (arm64-v8a & x86_64)" \
+            --notes "Optimized Release APKs for arm64-v8a and x86_64 (stripped C++ symbols, ABI filtered) built by GitHub Actions." \
             --prerelease
